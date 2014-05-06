@@ -24,6 +24,11 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <include/cef_app.h>
 
 #include <list>
+#include <set>
+
+////////////////////////////////////////////////////////////////////////////////
+
+#define DUMMY_URL "dummy:"
 
 ////////////////////////////////////////////////////////////////////////////////
 // String conversion
@@ -381,6 +386,8 @@ private:
 	MCCefMessageResult m_message_result;
 	std::map<int64_t, CefString> m_load_error_frames;
 	
+	std::set<CefString> m_ignore_urls;
+
 	CefString m_last_request_url;
 
 	// Error handling - we need to keep track of url that failed to load in a
@@ -417,6 +424,24 @@ public:
 	virtual CefRefPtr<CefDownloadHandler> GetDownloadHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() OVERRIDE { return this; }
+
+	void AddIgnoreUrl(const CefString &p_url)
+	{
+		m_ignore_urls.insert(p_url);
+	}
+
+	void RemoveIgnoreUrl(const CefString &p_url)
+	{
+		m_ignore_urls.erase(p_url);
+	}
+
+	bool IsIgnoreUrl(const CefString &p_url)
+	{
+		std::set<CefString>::iterator t_iter;
+		t_iter = m_ignore_urls.find(p_url);
+
+		return t_iter != m_ignore_urls.end();
+	}
 
 	MCCefMessageResult &GetMessageResult()
 	{
@@ -564,6 +589,9 @@ public:
 		CefString t_url;
 		t_url = p_request->GetURL();
 
+		if (IsIgnoreUrl(t_url))
+			return false;
+
 		char *t_url_str;
 		t_url_str = nil;
 		/* UNCHECKED */ MCCefStringToCString(t_url, t_url_str);
@@ -585,7 +613,13 @@ public:
 
 	virtual bool OnBeforeResourceLoad(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request) OVERRIDE
 	{
-		m_last_request_url = p_request->GetURL();
+		CefString t_url;
+		t_url = p_request->GetURL();
+
+		if (IsIgnoreUrl(t_url))
+			return false;
+
+		m_last_request_url = t_url;
 		
 		CefString t_user_agent;
 		if (!m_owner->GetUserAgent(t_user_agent))
@@ -666,6 +700,9 @@ public:
 		CefString t_url;
 		t_url = p_frame->GetURL();
 
+		if (IsIgnoreUrl(t_url))
+			return;
+
 		char *t_url_str;
 		t_url_str = nil;
 		/* UNCHECKED */ MCCefStringToCString(t_url, t_url_str);
@@ -691,6 +728,9 @@ public:
 		if (!t_is_error)
 			t_url = p_frame->GetURL();
 
+		if (IsIgnoreUrl(t_url))
+			return CefLoadHandler::OnLoadEnd(p_browser, p_frame, p_http_status_code);
+
 		char *t_url_str;
 		t_url_str = nil;
 		/* UNCHECKED */ MCCefStringToCString(t_url, t_url_str);
@@ -706,6 +746,9 @@ public:
 
 	virtual void OnLoadError(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefLoadHandler::ErrorCode p_error_code, const CefString &p_error_text, const CefString &p_failed_url) OVERRIDE
 	{
+		if (IsIgnoreUrl(p_failed_url))
+			return;
+
 		AddLoadErrorFrame(p_frame->GetIdentifier(), p_failed_url);
 	}
 
@@ -729,8 +772,9 @@ bool MCCefBrowserBase::Initialize()
 
 	CefWindowInfo t_window_info;
 	CefBrowserSettings t_settings;
-	CefString t_url;
+	CefString t_url(DUMMY_URL);
 
+	m_client->AddIgnoreUrl(t_url);
 	PlatformConfigureWindow(t_window_info);
 	CefBrowserHost::CreateBrowserSync(t_window_info, m_client.get(), t_url, t_settings, NULL);
 
@@ -1078,8 +1122,7 @@ void MCCefBrowserBase::SetSource(const char *p_source)
 	/* UNCHECKED */ MCCefStringFromCString(p_source, t_source);
 
 	// LoadString requires a valid url
-	CefString t_url;
-	t_url = "http://revbrowser_dummy_url";
+	CefString t_url("htmltext:");
 
 	m_browser->GetMainFrame()->LoadString(t_source, t_url);
 }

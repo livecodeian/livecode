@@ -87,7 +87,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="xcopy /E /Y &quot;$(SolutionDir)prebuilt\lib\libcef\win32\*&quot; &quot;$(OutDir)&quot;&#x0D;&#x0A;"
+				CommandLine=""
 				ExcludedFromBuild="false"
 			/>
 		</Configuration>
@@ -184,6 +184,10 @@
 		<ProjectReference
 			ReferencedProjectIdentifier="{58314BC9-A2EE-49F0-8B40-7BA12517A60C}"
 			RelativePathToProject=".\thirdparty\libcef\libcef.vcproj"
+		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{C704BBEE-0A2A-42C3-91D1-A382541593E0}"
+			RelativePathToProject=".\revbrowser\revbrowser-cefprocess.vcproj"
 		/>
 	</References>
 	<Files>

@@ -14,6 +14,8 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+#ifdef HAVE_MFC
+
 #include "core.h"
 
 #include "w32browser.h"
@@ -2056,5 +2058,33 @@ STDAPI DllUnregisterServer(void)
 	HRESULT hr = _AtlModule.DllUnregisterServer();
 	return hr;
 }
+
+#else // !defined(HAVE_MFC)
+
+#include "core.h"
+
+#include <windows.h>
+#include "revbrowser.h"
+
+HINSTANCE theInstance;
+
+HINSTANCE MCWin32BrowserGetHINSTANCE()
+{
+	return theInstance;
+}
+
+// DLL Entry Point
+extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
+{
+	theInstance = hInstance;
+	return TRUE;
+}
+
+CWebBrowserBase *InstantiateBrowser(int p_window_id)
+{
+	return NULL;
+}
+
+#endif // defined(HAVE_MFC)
 
 ///////////////////////////////////////////////////////////////////////////////
