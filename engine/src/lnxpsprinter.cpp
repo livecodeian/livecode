@@ -1449,15 +1449,25 @@ bool MCPSMetaContext::pattern_created( MCGImageRef p_pattern )
 // IM-2013-09-04: [[ ResIndependence ]] update fillpattern to take MCPatternRef & apply scale factor
 void MCPSMetaContext::fillpattern(MCPatternRef p_pattern, MCPoint p_origin)
 {
-	if (!pattern_created(p_pattern->image))
-		create_pattern(p_pattern->image);
+	MCGImageRef t_image;
+	t_image = nil;
+	
+	MCGAffineTransform t_transform;
+	
+	/* UNCHECKED */ MCPatternLockForContextTransform(p_pattern, MCGAffineTransformMakeIdentity(), t_image, t_transform);
+	t_transform = MCGAffineTransformTranslate(t_transform, p_origin.x, cardheight - p_origin.y);
+	
+	if (!pattern_created(t_image))
+		create_pattern(t_image);
 	// MDW-2013-04-16: [[ x64 ]] p_pattern is an XID (long unsigned int), so need $ld here
-	sprintf(buffer, "pattern_id_%ld\n", p_pattern->image);
+	sprintf(buffer, "pattern_id_%ld\n", t_image);
 	PSwrite ( buffer );
-	sprintf(buffer, "[%f 0 0 %f %d %d]\n", 1.0 / p_pattern->scale, 1.0 / p_pattern->scale, p_origin.x, cardheight - p_origin.y);
+	sprintf(buffer, "[%f %f %f %f %f %f]\n", t_transform.a, t_transform.b, t_transform.c, t_transform.d, t_transform.tx, t_transform.ty);
 	PSwrite(buffer);
 	PSwrite("makepattern\n");
 	PSwrite("setpattern\n");
+	
+	MCPatternUnlock(p_pattern, t_image);
 }
 		
 void MCPSMetaContext::create_pattern ( MCGImageRef p_pattern )
