@@ -50,13 +50,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 // as needing recomputing.
 void MCControl::layer_resetattrs(void)
 {
-	m_layer_mode = kMCLayerModeHintStatic;
-	m_layer_is_opaque = false;
-	m_layer_is_unadorned = false;
-	m_layer_is_sprite = false;
-	m_layer_is_direct = false;
+	MCLayerAttributesReset(m_layer);
 	m_layer_attr_changed = true;
-	m_layer_id = 0;
 }
 
 // This method updates all the layer attributes of the control to make sure they
@@ -66,59 +61,11 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 {
 	// If the attrs have not changed, there is nothing to do.
 	if (!m_layer_attr_changed)
-		return m_layer_mode;
+		return m_layer.mode;
 
 	// If the layer id is 0, then it means we should clear current settings.
-	if (m_layer_id == 0)
-	{
-		m_layer_mode = kMCLayerModeHintStatic;
-		m_layer_is_opaque = false;
-		m_layer_is_unadorned = false;
-		m_layer_is_sprite = false;
-		m_layer_is_direct = false;
-	}
-
-	// The opacity of a control depends on what flags it has set - in particular
-	// the 'opaque' flag. However, as 'opaque' determines themed bg rendering this
-	// is not a sufficient condition.
-	//
-	// If a control has external bitmap effects (drop shadow, outerglow) then it
-	// cannot be opaque. Similarly, if the control is rendered with themed bgs then
-	// it cannot be opaque.
-	//
-	// Opacity is more dynamic an attribute than adornedness and should be handled
-	// as a separate computation in the future.
-	//
-	bool t_is_opaque;
-	t_is_opaque = false;
-	if (MCBitmapEffectsIsInteriorOnly(getbitmapeffects()))
-	{
-		switch(gettype())
-		{
-		case CT_GROUP:
-			// Only consider groups unadorned groups to be opaque.
-			t_is_opaque = getflag(F_OPAQUE) &&
-				!getflag(F_HSCROLLBAR | F_VSCROLLBAR | F_SHOW_NAME | F_SHOW_BORDER);
-			break;
-		case CT_FIELD:
-			// Only consider unadorned fields to be opaque.
-			t_is_opaque = getflag(F_OPAQUE) && 
-				!getflag(F_HSCROLLBAR | F_VSCROLLBAR | F_SHOW_BORDER | F_SHADOW) && (extraflags & EF_NO_FOCUS_BORDER) != 0;
-			break;
-		case CT_BUTTON:
-		case CT_IMAGE:
-		case CT_SCROLLBAR:
-		case CT_GRAPHIC:
-		case CT_PLAYER:
-		default:
-			// The rest of the control types are hard to assess for opacity as
-			// that depends on their content / or complex theming considerations.
-			t_is_opaque = false;
-			break;
-		}
-	}
-	else
-		t_is_opaque = false;
+	if (!MCLayerAttributesIsActive(m_layer))
+		MCLayerAttributesReset(m_layer);
 
 	// The unadorned state depends on control type, but in general  means that the
 	// control consists of background + content. For a group content is the child
@@ -178,6 +125,46 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 	else
 		t_is_unadorned = false;
 
+	// The opacity of a control depends on what flags it has set - in particular
+	// the 'opaque' flag. However, as 'opaque' determines themed bg rendering this
+	// is not a sufficient condition.
+	//
+	// If a control has external bitmap effects (drop shadow, outerglow) then it
+	// cannot be opaque. Similarly, if the control is rendered with themed bgs then
+	// it cannot be opaque.
+	//
+	// Opacity is more dynamic an attribute than adornedness and should be handled
+	// as a separate computation in the future.
+	//
+	bool t_is_opaque;
+	t_is_opaque = false;
+	if (MCBitmapEffectsIsInteriorOnly(getbitmapeffects()))
+	{
+		switch(gettype())
+		{
+		case CT_GROUP:
+			// Only consider groups unadorned groups to be opaque.
+			t_is_opaque = getflag(F_OPAQUE) && t_is_unadorned;
+			break;
+		case CT_FIELD:
+			// Only consider unadorned fields to be opaque.
+			t_is_opaque = getflag(F_OPAQUE) && t_is_unadorned;
+			break;
+		case CT_BUTTON:
+		case CT_IMAGE:
+		case CT_SCROLLBAR:
+		case CT_GRAPHIC:
+		case CT_PLAYER:
+		default:
+			// The rest of the control types are hard to assess for opacity as
+			// that depends on their content / or complex theming considerations.
+			t_is_opaque = false;
+			break;
+		}
+	}
+	else
+		t_is_opaque = false;
+
 	// The actual type of layer we will use depends on opacity, adornedness,
 	// type and ink.
 	MCLayerModeHint t_layer_mode;
@@ -220,33 +207,19 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 	else
 		t_is_sprite = false;
 
-	// And now the direct attribute.
-	bool t_is_direct;
-	if (t_is_sprite)
-	{
-		// An unadorned image or button are direct.
-		if (t_is_unadorned && (gettype() == CT_IMAGE || gettype() == CT_BUTTON))
-			t_is_direct = true;
-		else
-			t_is_direct = false;
-	}
-	else
-		t_is_direct = false;
-
 	// Finally, sync the attribtues.
 	if (p_commit)
 	{
-		m_layer_mode = t_layer_mode;
-		m_layer_is_opaque = t_is_opaque;
-		m_layer_is_unadorned = t_is_unadorned;
-		m_layer_is_sprite = t_is_sprite;
-		m_layer_is_direct = t_is_direct;
+		m_layer.mode = t_layer_mode;
+		m_layer.is_opaque = t_is_opaque;
+		//m_layer_is_unadorned = t_is_unadorned;
+		m_layer.is_sprite = t_is_sprite;
 
 		// We've updated the layer attrs now - yay!
 		m_layer_attr_changed = false;
 	}
 
-	return m_layer_mode;
+	return m_layer.mode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -450,7 +423,7 @@ void MCControl::layer_contentoriginchanged(int32_t p_dx, int32_t p_dy)
 		return;
 
 	// If the layer id is 0 then return.
-	if (m_layer_id == 0)
+	if (!layer_is_active())
 		return;
 
 	// Fetch the tilecache we are using.
@@ -467,7 +440,7 @@ void MCControl::layer_contentoriginchanged(int32_t p_dx, int32_t p_dy)
 	MCGFloat t_dx, t_dy;
 	t_dx = t_device_point.x;
 	t_dy = t_device_point.y;
-	MCTileCacheScrollSprite(t_tilecache, m_layer_id, t_dx, t_dy);
+	MCTileCacheScrollSprite(t_tilecache, m_layer.id, t_dx, t_dy);
 }
 
 void MCControl::layer_scrolled(void)
@@ -510,7 +483,7 @@ void MCControl::layer_dirtycontentrect(const MCRectangle& p_updated_rect, bool p
 
 	// Note that this method is only called if layer_isscrolling() is true, which is only
 	// possible if we have a tilecache.
-	if (m_layer_id != 0)
+	if (layer_is_active())
 	{
 		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
@@ -520,7 +493,7 @@ void MCControl::layer_dirtycontentrect(const MCRectangle& p_updated_rect, bool p
 		MCRectangle32 t_device_updated_rect, t_device_content_rect;
 		t_device_updated_rect = MCRectangle32GetTransformedBounds(p_updated_rect, t_transform);
 		t_device_content_rect = MCRectangle32GetTransformedBounds(t_content_rect, t_transform);
-		MCTileCacheUpdateSprite(t_tilecache, m_layer_id, MCRectangle32Offset(t_device_updated_rect, -t_device_content_rect . x, -t_device_content_rect . y));
+		MCTileCacheUpdateSprite(t_tilecache, m_layer.id, MCRectangle32Offset(t_device_updated_rect, -t_device_content_rect . x, -t_device_content_rect . y));
 	}
 		
 	// Add the rect to the update region - but only if instructed (update_card will be
@@ -579,7 +552,7 @@ void MCControl::layer_dirtyeffectiverect(const MCRectangle& p_effective_rect, bo
 	{
 		// We must be in tile-cache mode with a top-level control, but if the layer
 		// id is zero, there is nothing to do.
-		if (t_control -> m_layer_id == 0)
+		if (!t_control -> layer_is_active())
 			return;
 
 		// How we handle the layer depends on whether it is a sprite or not.
@@ -587,7 +560,7 @@ void MCControl::layer_dirtyeffectiverect(const MCRectangle& p_effective_rect, bo
 		{
 			// Non-dynamic layers are scenery in the tilecache, their rect is in
 			// canvas co-ords.
-			MCTileCacheUpdateScenery(t_tilecache, t_control -> m_layer_id, t_device_rect);
+			MCTileCacheUpdateScenery(t_tilecache, t_control -> m_layer.id, t_device_rect);
 		}
 		else
 		{
@@ -604,7 +577,7 @@ void MCControl::layer_dirtyeffectiverect(const MCRectangle& p_effective_rect, bo
 			// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 			// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
 			t_device_rect = MCRectangle32GetTransformedBounds(t_offset_rect, t_transform);
-			MCTileCacheUpdateSprite(t_tilecache, t_control -> m_layer_id, t_device_rect);
+			MCTileCacheUpdateSprite(t_tilecache, t_control -> m_layer.id, t_device_rect);
 		}
 	}
 
@@ -669,7 +642,7 @@ void MCControl::layer_changeeffectiverect(const MCRectangle& p_old_effective_rec
 	
 	// We must be in tile-cache mode with a top-level control, but if the layer
 	// id is zero, there is nothing to do.
-	if (m_layer_id == 0)
+	if (!layer_is_active())
 		return;
 
 	if (!layer_issprite())
@@ -687,7 +660,7 @@ void MCControl::layer_changeeffectiverect(const MCRectangle& p_old_effective_rec
 		t_old_device_rect = MCRectangle32GetTransformedBounds(p_old_effective_rect, t_transform);
 		t_new_device_rect = MCRectangle32GetTransformedBounds(t_new_effective_rect, t_transform);
 		
-		MCTileCacheReshapeScenery(t_tilecache, m_layer_id, t_old_device_rect, t_new_device_rect);
+		MCTileCacheReshapeScenery(t_tilecache, m_layer.id, t_old_device_rect, t_new_device_rect);
 	}
 	else
 	{
@@ -721,7 +694,7 @@ void MCControl::layer_changeeffectiverect(const MCRectangle& p_old_effective_rec
 			
 			MCRectangle32 t_device_rect;
 			t_device_rect = MCRectangle32GetTransformedBounds(t_rect, t_transform);
-			MCTileCacheUpdateSprite(t_tilecache, m_layer_id, t_device_rect);
+			MCTileCacheUpdateSprite(t_tilecache, m_layer.id, t_device_rect);
 		}
 	}
 }
@@ -798,7 +771,7 @@ void MCCard::layer_removed(MCControl *p_control, MCObjptr *p_previous, MCObjptr 
 	if (t_tilecache != nil)
 	{
 		// If the control has no layer id then there is nothing to do.
-		if (p_control -> layer_getid() == 0)
+		if (!p_control -> layer_is_active())
 			return;
 
 		// If the control is on a dynamic layer then remove any associated sprite.

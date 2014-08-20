@@ -967,6 +967,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\layer.h"
+				>
+			</File>
+			<File
 				RelativePath="src\mctheme.cpp"
 				>
 			</File>

@@ -22,25 +22,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define __CONTROL_H
 
 #include "object.h"
-
-// This enum describes the 'hint' that is applied to the object via
-// the 'layerMode' property. The engine uses this to derive the actual
-// type of layer that will be used.
-enum MCLayerModeHint
-{
-	// The object's layer should be considered to be rarely changing
-	// and composited with the background wherever possible.
-	kMCLayerModeHintStatic,
-	// The object's layer should be considered to be rapidly changing
-	// and cached independently.
-	kMCLayerModeHintDynamic,
-	// The object's layer should be considered to be scrolling, its
-	// content cached independently and clipped to the bounds.
-	kMCLayerModeHintScrolling,
-	// The object's layer should be considered a union of its
-	// children's layers, rather than a layer in its own right.
-	kMCLayerModeHintContainer
-};
+#include "layer.h"
 
 class MCControl : public MCObject
 {
@@ -54,33 +36,13 @@ protected:
 	
 	MCBitmapEffectsRef m_bitmap_effects;
 
-	// MW-2011-08-24: [[ Layers ]] The layer id of the control.
-	uint32_t m_layer_id;
-	
 	// MW-2011-09-21: [[ Layers ]] Whether something about the control has
 	//   changed requiring a recompute the layer attributes.
 	bool m_layer_attr_changed : 1;
 	// MW-2011-09-21: [[ Layers ]] The layerMode as specified by the user
 	MCLayerModeHint m_layer_mode_hint : 3;
-	// MW-2011-09-21: [[ Layers ]] The effective layerMode as used in the
-	//   last frame.
-	MCLayerModeHint m_layer_mode : 3;
-	// MW-2011-09-21: [[ Layers ]] Whether the layer is top-level or not.
-	//   A layer is considered top-level if it's parent is a group, or all
-	//   it's ancestors (up to card) are of 'container' type.
-	bool m_layer_is_toplevel : 1;
-	// MW-2011-09-21: [[ Layers ]] Whether the layer should be considered
-	//   completely opaque.
-	bool m_layer_is_opaque : 1;
-	// MW-2011-09-21: [[ Layers ]] Whether the layer's content is simple
-	//   enough that it can be passed directly (images, buttons with icons).
-	bool m_layer_is_direct : 1;
-	// MW-2011-09-21: [[ Layers ]] Whether the layer's object is unadorned
-	//   (i.e. has no scrollbars, borders, effects etc.).
-	bool m_layer_is_unadorned : 1;
-	// MW-2011-09-21: [[ Layers ]] Whether the layer is a sprite or scenery
-	//   layer.
-	bool m_layer_is_sprite : 1;
+	// IM-2014-08-20: [[ Layers ]] The layer attributes of this object
+	MCLayerAttributes m_layer;
 
 	static int2 defaultmargin;
 	static int2 xoffset;
@@ -229,9 +191,11 @@ public:
 	void layer_dirtycontentrect(const MCRectangle& content_rect, bool update_card);
 
 	// MW-2011-08-24: [[ TileCache ]] Returns the current layer id.
-	uint32_t layer_getid(void) { return m_layer_id; }
+	uint32_t layer_getid(void) { return m_layer.id; }
 	// MW-2011-08-24: [[ TileCache ]] Set thes layer id.
-	void layer_setid(uint32_t p_id) { m_layer_id = p_id; }
+	void layer_setid(uint32_t p_id) { m_layer.id = p_id; }
+
+	bool layer_is_active(void) { return MCLayerAttributesIsActive(m_layer); }
 
 	// MW-2011-09-22: [[ Layers ]] Returns the layer mode hint.
 	MCLayerModeHint layer_getmodehint(void) { return m_layer_mode_hint; }
@@ -243,11 +207,11 @@ public:
 	MCRectangle layer_getcontentrect(void);
 
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is a sprite or not.
-	bool layer_issprite(void) { return m_layer_is_sprite; }
+	bool layer_issprite(void) { return m_layer.is_sprite; }
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is scrolling or not.
-	bool layer_isscrolling(void) { return m_layer_mode == kMCLayerModeHintScrolling; }
+	bool layer_isscrolling(void) { return m_layer.mode == kMCLayerModeHintScrolling; }
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is opaque or not.
-	bool layer_isopaque(void) { return m_layer_is_opaque; }
+	bool layer_isopaque(void) { return m_layer.is_opaque; }
 
 	// MW-2011-09-21: [[ Layers ]] Make sure the layerMode attr's are accurate.
 	MCLayerModeHint layer_computeattrs(bool commit);
