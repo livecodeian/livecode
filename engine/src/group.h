@@ -178,6 +178,10 @@ public:
 	//   group.
     bool islocked(void) { return m_updates_locked; }
 
+	virtual bool layer_compute_unadorned(void);
+	virtual bool layer_compute_opaque(void);
+	virtual MCLayerModeHint layer_compute_mode(bool p_unadorned, bool p_opaque);
+	
 	MCGroup *next()
 	{
 		return (MCGroup *)MCDLlist::next();

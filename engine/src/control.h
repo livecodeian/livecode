@@ -215,8 +215,15 @@ public:
 
 	// MW-2011-09-21: [[ Layers ]] Make sure the layerMode attr's are accurate.
 	MCLayerModeHint layer_computeattrs(bool commit);
+
+	virtual bool layer_compute_unadorned(void);
+	virtual bool layer_compute_opaque(void);
+	virtual MCLayerModeHint layer_compute_mode(bool p_unadorned, bool p_opaque);
+	
 	// MW-2011-09-21: [[ Layers ]] Reset the attributes to defaults.
 	void layer_resetattrs(void);
+	
+	virtual void render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, const MCGAffineTransform &p_device_transform, bool p_reset_layers);
 
 	static MCControl *getfocused()
 	{

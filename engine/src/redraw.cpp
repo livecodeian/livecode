@@ -54,44 +54,16 @@ void MCControl::layer_resetattrs(void)
 	m_layer_attr_changed = true;
 }
 
-// This method updates all the layer attributes of the control to make sure they
-// are consistent with the controls current set of flags. If commit is false,
-// then the new layermode is returned without changing anything.
-MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
+bool MCControl::layer_compute_unadorned(void)
 {
-	// If the attrs have not changed, there is nothing to do.
-	if (!m_layer_attr_changed)
-		return m_layer.mode;
-
-	// If the layer id is 0, then it means we should clear current settings.
-	if (!MCLayerAttributesIsActive(m_layer))
-		MCLayerAttributesReset(m_layer);
-
 	// The unadorned state depends on control type, but in general  means that the
 	// control consists of background + content. For a group content is the child
 	// controls, for a field its the text, for an image its the bits, for a button
 	// its the icon (if any), for a graphic it means just its shape.
 	//
-	// If a control has bitmap effects, it is always adorned as this requires further
-	// processing of the image.
-	//
-	// If a control is selected, it is always adorned, since the selection handles
-	// are part of the object.
-	//
 	bool t_is_unadorned;
-	if (getbitmapeffects() == nil && !getstate(CS_SELECTED))
+	switch(gettype())
 	{
-		switch(gettype())
-		{
-		case CT_GROUP:
-			// A group is unadorned if it has no scrollbars, no border and doesn't
-			// show a name.
-			t_is_unadorned = !getflag(F_HSCROLLBAR | F_VSCROLLBAR | F_SHOW_NAME | F_SHOW_BORDER);
-				
-			uint16_t t_index;
-			// IM-2014-05-02: [[ Bugfix 12044 ]] An opaque group is unadorned if its background is a color and it disallows overscroll
-			t_is_unadorned &= !getflag(F_OPAQUE) || (getcindex(DI_BACK, t_index) && !getflag(F_UNBOUNDED_HSCROLL | F_UNBOUNDED_VSCROLL));
-			break;
 		case CT_FIELD:
 			// A field is unadorned if it has no shadow, no scrollbars, no border and no focus
 			// border.
@@ -102,8 +74,8 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 			// no name, no shadow, no hilite border, no arm border and no focus border.
 			if (((MCButton *)this) -> getmenumode() != WM_COMBO)
 				t_is_unadorned = getflag(F_SHOW_ICON) &&
-									!getflag(F_SHOW_BORDER | F_SHOW_NAME | F_SHADOW | F_HILITE_BORDER | F_ARM_BORDER) &&
-									(extraflags & EF_NO_FOCUS_BORDER) != 0;
+				!getflag(F_SHOW_BORDER | F_SHOW_NAME | F_SHADOW | F_HILITE_BORDER | F_ARM_BORDER) &&
+				(extraflags & EF_NO_FOCUS_BORDER) != 0;
 			else
 				t_is_unadorned = false;
 			break;
@@ -120,35 +92,27 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 		default:
 			t_is_unadorned = false;
 			break;
-		}
 	}
-	else
-		t_is_unadorned = false;
+	
+	return t_is_unadorned;
+}
 
+bool MCControl::layer_compute_opaque(void)
+{
 	// The opacity of a control depends on what flags it has set - in particular
 	// the 'opaque' flag. However, as 'opaque' determines themed bg rendering this
 	// is not a sufficient condition.
-	//
-	// If a control has external bitmap effects (drop shadow, outerglow) then it
-	// cannot be opaque. Similarly, if the control is rendered with themed bgs then
-	// it cannot be opaque.
 	//
 	// Opacity is more dynamic an attribute than adornedness and should be handled
 	// as a separate computation in the future.
 	//
 	bool t_is_opaque;
 	t_is_opaque = false;
-	if (MCBitmapEffectsIsInteriorOnly(getbitmapeffects()))
+	switch(gettype())
 	{
-		switch(gettype())
-		{
-		case CT_GROUP:
-			// Only consider groups unadorned groups to be opaque.
-			t_is_opaque = getflag(F_OPAQUE) && t_is_unadorned;
-			break;
 		case CT_FIELD:
 			// Only consider unadorned fields to be opaque.
-			t_is_opaque = getflag(F_OPAQUE) && t_is_unadorned;
+			t_is_opaque = getflag(F_OPAQUE) && layer_compute_unadorned();
 			break;
 		case CT_BUTTON:
 		case CT_IMAGE:
@@ -160,11 +124,13 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 			// that depends on their content / or complex theming considerations.
 			t_is_opaque = false;
 			break;
-		}
 	}
-	else
-		t_is_opaque = false;
+	
+	return t_is_opaque;
+}
 
+MCLayerModeHint MCControl::layer_compute_mode(bool p_unadorned, bool p_opaque)
+{
 	// The actual type of layer we will use depends on opacity, adornedness,
 	// type and ink.
 	MCLayerModeHint t_layer_mode;
@@ -186,7 +152,57 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 	else if (m_layer_mode_hint == kMCLayerModeHintScrolling)
 	{
 		// A scrolling layer must be unadorned and a group.
-		if (gettype() == CT_GROUP && t_is_unadorned)
+		t_layer_mode = kMCLayerModeHintDynamic;
+	}
+	else if (m_layer_mode_hint == kMCLayerModeHintContainer)
+	{
+		// A container layer must be unadorned, non-opaque and a group.
+		t_layer_mode = kMCLayerModeHintStatic;
+	}
+	return t_layer_mode;
+}
+
+bool MCGroup::layer_compute_unadorned(void)
+{
+	// The unadorned state depends on control type, but in general  means that the
+	// control consists of background + content. For a group content is the child
+	// controls, for a field its the text, for an image its the bits, for a button
+	// its the icon (if any), for a graphic it means just its shape.
+	//
+	bool t_is_unadorned;
+	// A group is unadorned if it has no scrollbars, no border and doesn't
+	// show a name.
+	t_is_unadorned = !getflag(F_HSCROLLBAR | F_VSCROLLBAR | F_SHOW_NAME | F_SHOW_BORDER);
+	
+	uint16_t t_index;
+	// IM-2014-05-02: [[ Bugfix 12044 ]] An opaque group is unadorned if its background is a color and it disallows overscroll
+	t_is_unadorned &= !getflag(F_OPAQUE) || (getcindex(DI_BACK, t_index) && !getflag(F_UNBOUNDED_HSCROLL | F_UNBOUNDED_VSCROLL));
+	
+	return t_is_unadorned;
+}
+
+bool MCGroup::layer_compute_opaque(void)
+{
+	// The opacity of a control depends on what flags it has set - in particular
+	// the 'opaque' flag. However, as 'opaque' determines themed bg rendering this
+	// is not a sufficient condition.
+	//
+	// Opacity is more dynamic an attribute than adornedness and should be handled
+	// as a separate computation in the future.
+	//
+	// Only consider groups unadorned groups to be opaque.
+	return getflag(F_OPAQUE) && layer_compute_unadorned();
+}
+
+MCLayerModeHint MCGroup::layer_compute_mode(bool p_unadorned, bool p_opaque)
+{
+	// The actual type of layer we will use depends on opacity, adornedness,
+	// type and ink.
+	MCLayerModeHint t_layer_mode;
+	if (m_layer_mode_hint == kMCLayerModeHintScrolling)
+	{
+		// A scrolling layer must be unadorned and a group.
+		if (p_unadorned)
 			t_layer_mode = kMCLayerModeHintScrolling;
 		else
 			t_layer_mode = kMCLayerModeHintDynamic;
@@ -194,11 +210,53 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 	else if (m_layer_mode_hint == kMCLayerModeHintContainer)
 	{
 		// A container layer must be unadorned, non-opaque and a group.
-		if (gettype() == CT_GROUP && !t_is_opaque && t_is_unadorned)
+		if (!p_opaque && p_unadorned)
 			t_layer_mode = kMCLayerModeHintContainer;
 		else
 			t_layer_mode = kMCLayerModeHintStatic;
 	}
+	else
+		t_layer_mode = MCControl::layer_compute_mode(p_unadorned, p_opaque);
+	return t_layer_mode;
+}
+
+// This method updates all the layer attributes of the control to make sure they
+// are consistent with the controls current set of flags. If commit is false,
+// then the new layermode is returned without changing anything.
+MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
+{
+	// If the attrs have not changed, there is nothing to do.
+	if (!m_layer_attr_changed)
+		return m_layer.mode;
+
+	// If the layer id is 0, then it means we should clear current settings.
+	if (!MCLayerAttributesIsActive(m_layer))
+		MCLayerAttributesReset(m_layer);
+
+	// If a control has bitmap effects, it is always adorned as this requires further
+	// processing of the image.
+	//
+	// If a control is selected, it is always adorned, since the selection handles
+	// are part of the object.
+	//
+	bool t_is_unadorned;
+	t_is_unadorned = false;
+	if (getbitmapeffects() == nil && !getstate(CS_SELECTED))
+		t_is_unadorned = layer_compute_unadorned();
+
+	// If a control has external bitmap effects (drop shadow, outerglow) then it
+	// cannot be opaque. Similarly, if the control is rendered with themed bgs then
+	// it cannot be opaque.
+	//
+	bool t_is_opaque;
+	t_is_opaque = false;
+	if (MCBitmapEffectsIsInteriorOnly(getbitmapeffects()))
+		t_is_opaque = layer_compute_opaque();
+
+	// The actual type of layer we will use depends on opacity, adornedness,
+	// type and ink.
+	MCLayerModeHint t_layer_mode;
+	t_layer_mode = layer_compute_mode(t_is_unadorned, t_is_opaque);
 
 	// Now compute the sprite attribute.
 	bool t_is_sprite;
@@ -1031,6 +1089,134 @@ bool device_render_background(void *p_context, MCGContextRef p_target, const MCR
 	return tilecache_device_renderer(MCCard::tilecache_render_background, p_context, p_target, p_rectangle, false);
 }
 
+uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache,
+								const MCLayerAttributes &p_old, const MCLayerAttributes &p_new,
+								const MCRectangle32 &p_region, const MCRectangle32 &p_clip,
+								uint32_t p_opacity, uint32_t p_ink,
+								MCTileCacheRenderCallback p_callback, void *p_context
+								)
+{
+	// Take note of whether the spriteness of a layer has changed.
+	bool t_old_is_sprite;
+	t_old_is_sprite = p_old.is_sprite;
+	
+	// Initialize the common layer props.
+	MCTileCacheLayer t_layer;
+	t_layer . id = p_new.id;
+	t_layer . opacity = p_opacity;
+	t_layer . ink = p_ink;
+	t_layer . callback = p_callback;
+	t_layer . context = p_context;
+	
+	// The opaqueness of a layer has already been computed.
+	t_layer . is_opaque = p_new.is_opaque;
+	
+	t_layer . region = p_region;
+	t_layer . clip = p_clip;
+	
+	// Now render the layer - what method we use depends on whether the
+	// layer is a sprite or not.
+	if (p_new.is_sprite)
+	{
+		// If the layer was not a sprite before, remove the scenery
+		// layer that it was.
+		if (!p_old.is_sprite && t_layer . id != 0)
+		{
+			// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+			// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+			MCTileCacheRemoveScenery(p_tilecache, t_layer . id, t_layer . region);
+			t_layer . id = 0;
+		}
+		
+		t_layer . callback = testtilecache_device_sprite_renderer;
+		MCTileCacheRenderSprite(p_tilecache, t_layer);
+	}
+	else
+	{
+		// If the layer was a sprite before, remove the sprite
+		// layer that it was.
+		if (t_old_is_sprite && t_layer . id != 0)
+		{
+			MCTileCacheRemoveSprite(p_tilecache, t_layer . id);
+			t_layer . id = 0;
+		}
+		
+		// MW-2013-10-29: [[ Bug 11349 ]] Scenery layers regions are clipped
+		//   by the clip directly.
+		t_layer . region = MCRectangle32Intersect(t_layer . region, t_layer . clip);
+		
+		t_layer . callback = testtilecache_device_scenery_renderer;
+		MCTileCacheRenderScenery(p_tilecache, t_layer);
+	}
+	
+	return t_layer.id;
+}
+
+// Add control layers to tilecache - front to back
+void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, const MCGAffineTransform &p_device_transform, bool p_reset_layers)
+{
+	// If the tilecache is 'clean' then we must reset the attrs to
+	// force a sync.
+	if (p_reset_layers)
+		layer_resetattrs();
+	
+	MCLayerAttributes t_old_attribs;
+	t_old_attribs = m_layer;
+	
+	// Sync the attributes, make sure we commit the new values.
+	layer_computeattrs(true);
+	
+	MCLayerAttributes t_new_attribs;
+	t_new_attribs = m_layer;
+	
+	// Now compute the layer's region/clip.
+	MCRectangle t_layer_region, t_layer_clip;
+	if (!getflag(F_VISIBLE) && !MCshowinvisibles)
+	{
+		// Invisible layers just have empty region/clip.
+		t_layer_region = MCU_make_rect(0, 0, 0, 0);
+		t_layer_clip = MCU_make_rect(0, 0, 0, 0);
+	}
+	else if (!layer_isscrolling())
+	{
+		// Non-scrolling layer's are the size of their effective rects.
+		t_layer_region = geteffectiverect();
+		t_layer_clip = t_layer_region;
+	}
+	else
+	{
+		// For a scrolling layer, the clip is the bounds of the control, while
+		// the region we draw is the group's minrect.
+		t_layer_region = layer_getcontentrect();
+		t_layer_clip = geteffectiverect();
+	}
+	
+	// IM-2013-10-14: [[ FullscreenMode ]] Constrain each layer to the visible area
+	t_layer_clip = MCU_intersect_rect(t_layer_clip, p_clip);
+	
+	MCTileCacheRenderCallback t_callback;
+	if (layer_issprite())
+		t_callback = testtilecache_device_sprite_renderer;
+	else
+		t_callback = testtilecache_device_scenery_renderer;
+	
+	// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+	// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+	MCRectangle32 t_region, t_clip;
+	t_region = MCRectangle32GetTransformedBounds(t_layer_region, p_device_transform);
+	t_clip = MCRectangle32GetTransformedBounds(t_layer_clip, p_device_transform);
+	
+	uint32_t t_new_id;
+	t_new_id = MCLayerUpdateTileCache(p_tilecache,
+									  t_old_attribs, t_new_attribs,
+									  t_region, t_clip,
+									  getopacity(), getink(),
+									  t_callback, this
+									  );
+	
+	m_layer.id = t_new_id;
+}
+
 void MCCard::render(void)
 {
 	MCTileCacheRef t_tiler;
@@ -1076,96 +1262,8 @@ void MCCard::render(void)
 			MCControl *t_control;
 			t_control = t_objptr -> getref();
 
-			// If the tilecache is 'clean' then we must reset the attrs to
-			// force a sync.
-			if (t_reset_ids)
-				t_control -> layer_resetattrs();
-
-			// Take note of whether the spriteness of a layer has changed.
-			bool t_old_is_sprite;
-			t_old_is_sprite = t_control -> layer_issprite();
-
-			// Sync the attributes, make sure we commit the new values.
-			t_control -> layer_computeattrs(true);
-
-			// Initialize the common layer props.
-			MCTileCacheLayer t_layer;
-			t_layer . id = t_control -> layer_getid();
-			t_layer . opacity = t_control -> getopacity();
-			t_layer . ink = t_control -> getink();
-			t_layer . context = t_control;
-
-			// The opaqueness of a layer has already been computed.
-			t_layer . is_opaque = t_control -> layer_isopaque();
-
-			// Now compute the layer's region/clip.
-			MCRectangle t_layer_region, t_layer_clip;
-			if (!t_control -> getflag(F_VISIBLE) && !MCshowinvisibles)
-			{
-				// Invisible layers just have empty region/clip.
-				t_layer_region = MCU_make_rect(0, 0, 0, 0);
-				t_layer_clip = MCU_make_rect(0, 0, 0, 0);
-			}
-			else if (!t_control -> layer_isscrolling())
-			{
-				// Non-scrolling layer's are the size of their effective rects.
-				t_layer_region = t_control -> geteffectiverect();
-				t_layer_clip = t_layer_region;
-			}
-			else
-			{
-				// For a scrolling layer, the clip is the bounds of the control, while
-				// the region we draw is the group's minrect.
-				t_layer_region = t_control -> layer_getcontentrect();
-				t_layer_clip = t_control -> geteffectiverect();
-			}
-
-			// IM-2013-10-14: [[ FullscreenMode ]] Constrain each layer to the visible area
-			t_layer_clip = MCU_intersect_rect(t_layer_clip, t_visible_rect);
+			t_control->render(t_tiler, t_visible_rect, t_transform, t_reset_ids);
 			
-			// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
-			// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-			t_layer . region = MCRectangle32GetTransformedBounds(t_layer_region, t_transform);
-			t_layer . clip = MCRectangle32GetTransformedBounds(t_layer_clip, t_transform);
-			
-			// Now render the layer - what method we use depends on whether the
-			// layer is a sprite or not.
-			if (t_control -> layer_issprite())
-			{
-				// If the layer was not a sprite before, remove the scenery
-				// layer that it was.
-				if (!t_old_is_sprite && t_layer . id != 0)
-				{
-					// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
-					// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-					MCTileCacheRemoveScenery(t_tiler, t_layer . id, t_layer . region);
-					t_layer . id = 0;
-				}
-				
-				t_layer . callback = testtilecache_device_sprite_renderer;
-				MCTileCacheRenderSprite(t_tiler, t_layer);
-			}
-			else
-			{
-				// If the layer was a sprite before, remove the sprite
-				// layer that it was.
-				if (t_old_is_sprite && t_layer . id != 0)
-				{
-					MCTileCacheRemoveSprite(t_tiler, t_layer . id);
-					t_layer . id = 0;
-				}
-
-				// MW-2013-10-29: [[ Bug 11349 ]] Scenery layers regions are clipped
-				//   by the clip directly.
-				t_layer . region = MCRectangle32Intersect(t_layer . region, t_layer . clip);
-				
-				t_layer . callback = testtilecache_device_scenery_renderer;
-				MCTileCacheRenderScenery(t_tiler, t_layer);
-			}
-			
-			// Upate the id.
-			t_control -> layer_setid(t_layer . id);
-
 			// Advance to the object below.
 			t_objptr = t_objptr -> prev();
 		}

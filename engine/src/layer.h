@@ -52,17 +52,8 @@ struct MCLayerAttributes
 	bool is_sprite : 1;
 };
 
-inline void MCLayerAttributesReset(MCLayerAttributes &x_attributes)
-{
-	x_attributes.id = 0;
-	x_attributes.mode = kMCLayerModeHintStatic;
-	x_attributes.is_opaque = false;
-	x_attributes.is_sprite = false;
-}
-
-inline bool MCLayerAttributesIsActive(const MCLayerAttributes &p_layer)
-{
-	return p_layer.id != 0;
-}
+void MCLayerAttributesReset(MCLayerAttributes &x_attributes);
+//MCLayerModeHint MCLayerAttributesCompute(MCLayerAttributes &x_attributes, bool p_is_unadorned);
+bool MCLayerAttributesIsActive(const MCLayerAttributes &p_layer);
 
 #endif /* __MC_LAYER__ */
