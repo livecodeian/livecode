@@ -1228,60 +1228,67 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 	if (p_reset_layers)
 		layer_resetattrs();
 	
-	MCLayer t_old_layer;
-	t_old_layer = m_layer;
+	MCLayer *t_layers;
+	uint32_t t_count;
+	
+	if (!layer_getlayers(t_layers, t_count) || t_count == 0)
+		return;
+	
+	MCLayer *t_old_layers;
+	if (!MCMemoryAllocateCopy(t_layers, sizeof(MCLayer) * t_count, t_old_layers))
+		return;
 	
 	// Sync the attributes, make sure we commit the new values.
 	layer_computeattrs(true);
 	
-	MCLayer t_new_layer;
-	t_new_layer = m_layer;
-	
-	// Now compute the layer's region/clip.
-	MCRectangle t_layer_region, t_layer_clip;
-	if (!getflag(F_VISIBLE) && !MCshowinvisibles)
+	for (uint32_t i = 0; i < t_count; i++)
 	{
-		// Invisible layers just have empty region/clip.
-		t_layer_region = MCU_make_rect(0, 0, 0, 0);
-		t_layer_clip = MCU_make_rect(0, 0, 0, 0);
+		// Now compute the layer's region/clip.
+		MCRectangle t_layer_region, t_layer_clip;
+		if (!getflag(F_VISIBLE) && !MCshowinvisibles)
+		{
+			// Invisible layers just have empty region/clip.
+			t_layer_region = MCU_make_rect(0, 0, 0, 0);
+			t_layer_clip = MCU_make_rect(0, 0, 0, 0);
+		}
+		else if (t_layers[i].mode != kMCLayerModeHintScrolling)
+		{
+			// Non-scrolling layer's are the size of their effective rects.
+			t_layer_region = geteffectiverect();
+			t_layer_clip = t_layer_region;
+		}
+		else
+		{
+			// For a scrolling layer, the clip is the bounds of the control, while
+			// the region we draw is the group's minrect.
+			t_layer_region = layer_getcontentrect();
+			t_layer_clip = geteffectiverect();
+		}
+		
+		// IM-2013-10-14: [[ FullscreenMode ]] Constrain each layer to the visible area
+		t_layer_clip = MCU_intersect_rect(t_layer_clip, p_clip);
+		
+		MCTileCacheRenderCallback t_callback;
+		if (t_layers[i].is_sprite)
+			t_callback = testtilecache_device_sprite_renderer;
+		else
+			t_callback = testtilecache_device_scenery_renderer;
+		
+		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+		t_layers[i].region = MCRectangle32GetTransformedBounds(t_layer_region, p_device_transform);
+		t_layers[i].clip = MCRectangle32GetTransformedBounds(t_layer_clip, p_device_transform);
+		
+		t_layers[i].opacity = getopacity();
+		t_layers[i].ink = getink();
+		t_layers[i].callback = t_callback;
+		t_layers[i].context = this;
+		
+		uint32_t t_new_id;
+		t_new_id = MCLayerUpdateTileCache(p_tilecache, t_old_layers[i], t_layers[i]);
+		
+		t_layers[i].id = t_new_id;
 	}
-	else if (!layer_isscrolling())
-	{
-		// Non-scrolling layer's are the size of their effective rects.
-		t_layer_region = geteffectiverect();
-		t_layer_clip = t_layer_region;
-	}
-	else
-	{
-		// For a scrolling layer, the clip is the bounds of the control, while
-		// the region we draw is the group's minrect.
-		t_layer_region = layer_getcontentrect();
-		t_layer_clip = geteffectiverect();
-	}
-	
-	// IM-2013-10-14: [[ FullscreenMode ]] Constrain each layer to the visible area
-	t_layer_clip = MCU_intersect_rect(t_layer_clip, p_clip);
-	
-	MCTileCacheRenderCallback t_callback;
-	if (layer_issprite())
-		t_callback = testtilecache_device_sprite_renderer;
-	else
-		t_callback = testtilecache_device_scenery_renderer;
-	
-	// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
-	// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-	t_new_layer.region = MCRectangle32GetTransformedBounds(t_layer_region, p_device_transform);
-	t_new_layer.clip = MCRectangle32GetTransformedBounds(t_layer_clip, p_device_transform);
-	
-	t_new_layer.opacity = getopacity();
-	t_new_layer.ink = getink();
-	t_new_layer.callback = t_callback;
-	t_new_layer.context = this;
-	
-	uint32_t t_new_id;
-	t_new_id = MCLayerUpdateTileCache(p_tilecache, t_old_layer, t_new_layer);
-	
-	m_layer.id = t_new_id;
 }
 
 void MCCard::render(void)
