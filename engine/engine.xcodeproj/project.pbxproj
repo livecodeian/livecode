@@ -552,6 +552,8 @@
 		E8AE876C177B3F5C0041B7E0 /* cgimageutil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8AE876B177B3F5C0041B7E0 /* cgimageutil.cpp */; };
 		E8AF465B174CF247000B2F9E /* surface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4D4F9DFA13CDE63000B9B15D /* surface.cpp */; };
 		E8B5BB1416DF77DF00CA02FB /* imagelist.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8B5BB1216DF77DF00CA02FB /* imagelist.cpp */; };
+		E8C36B5519A60CC6005241FB /* layer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8C36B5419A60CC6005241FB /* layer.cpp */; };
+		E8C36B5619A60CC6005241FB /* layer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8C36B5419A60CC6005241FB /* layer.cpp */; };
 		E8D1ECDD1992395A00984EFE /* sysosxrandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DB32230174BD08E00046FFE /* sysosxrandom.cpp */; };
 		E8D7F8321785A88200EC051A /* imagelist.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8B5BB1216DF77DF00CA02FB /* imagelist.cpp */; };
 		E8D7F8391785A8AC00EC051A /* graphicscontext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4C10D76D16BF9BFA00D25197 /* graphicscontext.cpp */; };
@@ -1577,6 +1579,8 @@
 		E8AF4890174D5563000B2F9E /* libskia.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = libskia.xcodeproj; path = ../thirdparty/libskia/libskia.xcodeproj; sourceTree = SOURCE_ROOT; };
 		E8B5BB1216DF77DF00CA02FB /* imagelist.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imagelist.cpp; path = src/imagelist.cpp; sourceTree = "<group>"; };
 		E8B5BB1316DF77DF00CA02FB /* imagelist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imagelist.h; path = src/imagelist.h; sourceTree = "<group>"; };
+		E8C36B5319A60BD3005241FB /* layer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = layer.h; path = src/layer.h; sourceTree = "<group>"; };
+		E8C36B5419A60CC6005241FB /* layer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = layer.cpp; path = src/layer.cpp; sourceTree = "<group>"; };
 		E8D7F8461785A99900EC051A /* srvtheme.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srvtheme.cpp; path = src/srvtheme.cpp; sourceTree = "<group>"; };
 		E8D7F8C21785D82F00EC051A /* resolution.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = resolution.h; path = src/resolution.h; sourceTree = "<group>"; };
 		E8DDE5DD16C2B1A7007367E4 /* image_rep_resampled.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = image_rep_resampled.cpp; path = src/image_rep_resampled.cpp; sourceTree = "<group>"; };
@@ -2542,6 +2546,8 @@
 				4C10D76E16BF9BFA00D25197 /* graphicscontext.h */,
 				E8B5BB1216DF77DF00CA02FB /* imagelist.cpp */,
 				E8B5BB1316DF77DF00CA02FB /* imagelist.h */,
+				E8C36B5419A60CC6005241FB /* layer.cpp */,
+				E8C36B5319A60BD3005241FB /* layer.h */,
 				4D587E370B8096FD00200116 /* mctheme.cpp */,
 				4D587DD90B8096E600200116 /* mctheme.h */,
 				4D587E7D0B8096FD00200116 /* metacontext.cpp */,
@@ -3457,6 +3463,7 @@
 				4D1F9D1C171C682E0091C6CB /* srvmain.cpp in Sources */,
 				4D1F9D1D171C682E0091C6CB /* srvscript.cpp in Sources */,
 				4D1F9D1E171C682E0091C6CB /* srvspec.cpp in Sources */,
+				E8C36B5619A60CC6005241FB /* layer.cpp in Sources */,
 				4D1F9D1F171C682E0091C6CB /* srvstack.cpp in Sources */,
 				4D1F9D20171C682E0091C6CB /* sysspec.cpp in Sources */,
 				4D1F9D21171C682E0091C6CB /* aclip.cpp in Sources */,
@@ -3769,6 +3776,7 @@
 				4DEE2AEF0FDE42710009423C /* path.cpp in Sources */,
 				4DEE2AF00FDE42710009423C /* pathgray.cpp in Sources */,
 				4DEE2AF10FDE42710009423C /* pathprocess.cpp in Sources */,
+				E8C36B5519A60CC6005241FB /* layer.cpp in Sources */,
 				4DEE2AF20FDE42710009423C /* pickle.cpp in Sources */,
 				4DEE2AF40FDE42710009423C /* printer.cpp in Sources */,
 				4DEE2AF50FDE42710009423C /* property.cpp in Sources */,
