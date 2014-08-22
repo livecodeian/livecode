@@ -42,7 +42,9 @@ protected:
 	// MW-2011-09-21: [[ Layers ]] The layerMode as specified by the user
 	MCLayerModeHint m_layer_mode_hint : 3;
 	// IM-2014-08-20: [[ Layers ]] The layer attributes of this object
-	MCLayerAttributes m_layer;
+	MCLayer m_layer;
+//	MCLayer *m_layers;
+//	uint32_t m_layer_count;
 
 	static int2 defaultmargin;
 	static int2 xoffset;
@@ -190,13 +192,6 @@ public:
 	//   'update_card' is true then the dirty rect of the stack will be updated too.
 	void layer_dirtycontentrect(const MCRectangle& content_rect, bool update_card);
 
-	// MW-2011-08-24: [[ TileCache ]] Returns the current layer id.
-	uint32_t layer_getid(void) { return m_layer.id; }
-	// MW-2011-08-24: [[ TileCache ]] Set thes layer id.
-	void layer_setid(uint32_t p_id) { m_layer.id = p_id; }
-
-	bool layer_is_active(void) { return MCLayerAttributesIsActive(m_layer); }
-
 	// MW-2011-09-22: [[ Layers ]] Returns the layer mode hint.
 	MCLayerModeHint layer_getmodehint(void) { return m_layer_mode_hint; }
 	// MW-2011-11-24: [[ LayerMode Save ]] Sets the layer mode hint (used by object unpickling).
@@ -206,12 +201,12 @@ public:
 	// MW-2011-09-07: [[ Layers ]] Returns the content rect of the layer (if scrolling).
 	MCRectangle layer_getcontentrect(void);
 
+	bool layer_is_active(void) { return MCLayerIsActive(m_layer); }
+	
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is a sprite or not.
 	bool layer_issprite(void) { return m_layer.is_sprite; }
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is scrolling or not.
 	bool layer_isscrolling(void) { return m_layer.mode == kMCLayerModeHintScrolling; }
-	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is opaque or not.
-	bool layer_isopaque(void) { return m_layer.is_opaque; }
 
 	// MW-2011-09-21: [[ Layers ]] Make sure the layerMode attr's are accurate.
 	MCLayerModeHint layer_computeattrs(bool commit);
@@ -222,6 +217,8 @@ public:
 	
 	// MW-2011-09-21: [[ Layers ]] Reset the attributes to defaults.
 	void layer_resetattrs(void);
+	
+	virtual bool layer_getlayers(MCLayer *&r_layers, uint32_t &r_count);
 	
 	virtual void render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, const MCGAffineTransform &p_device_transform, bool p_reset_layers);
 

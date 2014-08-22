@@ -17,6 +17,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #ifndef __MC_LAYER__
 #define __MC_LAYER__
 
+#include "tilecache.h"
+
 // This enum describes the 'hint' that is applied to the object via
 // the 'layerMode' property. The engine uses this to derive the actual
 // type of layer that will be used.
@@ -36,7 +38,7 @@ enum MCLayerModeHint
 	kMCLayerModeHintContainer
 };
 
-struct MCLayerAttributes
+struct MCLayer
 {
 	// MW-2011-08-24: [[ Layers ]] The layer id of the control.
 	uint32_t id;
@@ -50,10 +52,19 @@ struct MCLayerAttributes
 	// MW-2011-09-21: [[ Layers ]] Whether the layer is a sprite or scenery
 	//   layer.
 	bool is_sprite : 1;
+	
+	MCRectangle32 region;
+	MCRectangle32 clip;
+	
+	uint32_t opacity;
+	uint32_t ink;
+	
+	MCTileCacheRenderCallback callback;
+	void *context;
 };
 
-void MCLayerAttributesReset(MCLayerAttributes &x_attributes);
+void MCLayerReset(MCLayer &x_layer);
 //MCLayerModeHint MCLayerAttributesCompute(MCLayerAttributes &x_attributes, bool p_is_unadorned);
-bool MCLayerAttributesIsActive(const MCLayerAttributes &p_layer);
+bool MCLayerIsActive(const MCLayer &p_layer);
 
 #endif /* __MC_LAYER__ */

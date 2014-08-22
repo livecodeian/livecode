@@ -14,21 +14,28 @@
  You should have received a copy of the GNU General Public License
  along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+#include "prefix.h"
+
 #include "core.h"
+
+#include "graphics.h"
+#include "graphics_util.h"
 
 #include "layer.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCLayerAttributesReset(MCLayerAttributes &x_attributes)
+void MCLayerReset(MCLayer &x_layer)
 {
-	x_attributes.id = 0;
-	x_attributes.mode = kMCLayerModeHintStatic;
-	x_attributes.is_opaque = false;
-	x_attributes.is_sprite = false;
+	x_layer.id = 0;
+	x_layer.mode = kMCLayerModeHintStatic;
+	x_layer.is_opaque = false;
+	x_layer.is_sprite = false;
+	
+	x_layer.region = x_layer.clip = MCRectangle32Make(0, 0, 0, 0);
 }
 
-bool MCLayerAttributesIsActive(const MCLayerAttributes &p_layer)
+bool MCLayerIsActive(const MCLayer &p_layer)
 {
 	return p_layer.id != 0;
 }

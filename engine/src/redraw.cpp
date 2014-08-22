@@ -46,11 +46,19 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool MCControl::layer_getlayers(MCLayer *&r_layers, uint32_t &r_count)
+{
+	r_layers = &m_layer;
+	r_count = 1;
+	
+	return true;
+}
+
 // This method resets the layer-related attribtues to defaults and marks them
 // as needing recomputing.
 void MCControl::layer_resetattrs(void)
 {
-	MCLayerAttributesReset(m_layer);
+	MCLayerReset(m_layer);
 	m_layer_attr_changed = true;
 }
 
@@ -230,8 +238,8 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 		return m_layer.mode;
 
 	// If the layer id is 0, then it means we should clear current settings.
-	if (!MCLayerAttributesIsActive(m_layer))
-		MCLayerAttributesReset(m_layer);
+	if (!MCLayerIsActive(m_layer))
+		MCLayerReset(m_layer);
 
 	// If a control has bitmap effects, it is always adorned as this requires further
 	// processing of the image.
@@ -270,7 +278,6 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 	{
 		m_layer.mode = t_layer_mode;
 		m_layer.is_opaque = t_is_opaque;
-		//m_layer_is_unadorned = t_is_unadorned;
 		m_layer.is_sprite = t_is_sprite;
 
 		// We've updated the layer attrs now - yay!
@@ -759,6 +766,37 @@ void MCControl::layer_changeeffectiverect(const MCRectangle& p_old_effective_rec
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void MCLayerAdd(MCTileCacheRef p_tilecache, const MCLayer &p_previous, MCLayer &x_layer)
+{
+	// If the control is on a dynamic layer there is nothing to do (sprites will
+	// be created implicitly at first render).
+	if (x_layer.is_sprite)
+		return;
+	
+	// If the layer below has no id, then there is nothing to do
+	// also. This will only occur if only new layers have been added above,
+	// or if no rendering has been done yet.
+	if (!MCLayerIsActive(p_previous))
+		return;
+	
+	// MW-2013-06-21: [[ Bug 10974 ]] If the previous layer is a sprite then this layer
+	//   will change the lower limit of the scenery layers above, thus there is
+	//   nothing to do.
+	if (p_previous.is_sprite)
+		return;
+	
+	// Now insert the scenery.
+	// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+	// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+	MCTileCacheInsertScenery(p_tilecache, p_previous.id, x_layer.region);
+	
+	// Finally, set the id of the layer to that of the one before. This causes
+	// the layer to be treated 'as one' with that layer until a redraw is done.
+	// This means that any subsequent updates to the rect of the new layer will
+	// appropriately flush the tiles in the cache.
+	x_layer.id = p_previous.id;
+}
+
 void MCCard::layer_added(MCControl *p_control, MCObjptr *p_previous, MCObjptr *p_next)
 {
 	MCTileCacheRef t_tilecache;
@@ -777,42 +815,43 @@ void MCCard::layer_added(MCControl *p_control, MCObjptr *p_previous, MCObjptr *p
 		// Recompute the control's attributes.
 		p_control -> layer_computeattrs(true);
 
+		// If the control is not being added between two existing layers then there
+		// is nothing to do.
+		if (p_previous == nil || p_next == nil)
+			return;
+		
 		// If the control is on a dynamic layer there is nothing to do (sprites will
 		// be created implicitly at first render).
 		if (p_control -> layer_issprite())
 			return;
 
-		// If the control is not being added between two existing layers then there
-		// is nothing to do.
-		if (p_previous == nil || p_next == nil)
-			return;
-
 		// If the previous (layer below) objptr has no id, then there is nothing to do
 		// also. This will only occur if only new layers have been added above,
 		// or if no rendering has been done yet.
-		uint32_t t_before_layer_id;
-		t_before_layer_id = p_previous -> getref() -> layer_getid();
-		if (t_before_layer_id == 0)
-			return;
-
-		// MW-2013-06-21: [[ Bug 10974 ]] If the previous layer is a sprite then this layer
-		//   will change the lower limit of the scenery layers above, thus there is
-		//   nothing to do.
-		if (p_previous -> getref() -> layer_issprite())
+		MCLayer *t_prev_layers;
+		uint32_t t_prev_count;
+		if (!p_previous->getref()->layer_getlayers(t_prev_layers, t_prev_count) || t_prev_count == 0)
 			return;
 		
-		// Now insert the scenery.
+		MCLayer *t_layers;
+		uint32_t t_count;
+		if (!p_control->layer_getlayers(t_layers, t_count) || t_count == 0)
+			return;
+		
+		MCLayer *t_prev;
+		t_prev = &t_prev_layers[t_prev_count - 1];
+		
 		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
 		MCRectangle32 t_device_rect;
 		t_device_rect = MCRectangle32GetTransformedBounds(p_control->geteffectiverect(), getstack()->getdevicetransform());
-		MCTileCacheInsertScenery(t_tilecache, t_before_layer_id, t_device_rect);
 
-		// Finally, set the id of the layer to that of the one before. This causes
-		// the layer to be treated 'as one' with that layer until a redraw is done.
-		// This means that any subsequent updates to the rect of the new layer will
-		// appropriately flush the tiles in the cache.
-		p_control -> layer_setid(t_before_layer_id);
+		for (uint32_t i = 0; i < t_count; i++)
+		{
+			t_layers[i].region = t_device_rect;
+			MCLayerAdd(t_tilecache, *t_prev, t_layers[i]);
+			t_prev = &t_layers[i];
+		}
 	}
 }
 
@@ -828,67 +867,103 @@ void MCCard::layer_removed(MCControl *p_control, MCObjptr *p_previous, MCObjptr 
 	// Notify any tilecache of the changes.
 	if (t_tilecache != nil)
 	{
-		// If the control has no layer id then there is nothing to do.
-		if (!p_control -> layer_is_active())
+		MCLayer *t_layers;
+		uint32_t t_count;
+		if (!p_control->layer_getlayers(t_layers, t_count) || t_count == 0)
 			return;
-
-		// If the control is on a dynamic layer then remove any associated sprite.
-		if (p_control -> layer_issprite())
-		{
-			MCTileCacheRemoveSprite(t_tilecache, p_control -> layer_getid());
-			
-			// MW-2012-09-21: [[ Bug 10005 ]] Make sure we reset the layer attrs so we
-			//   don't try and reuse a dead sprite.
-			p_control -> layer_resetattrs();
-			
-			return;
-		}
-
-		// Remove the scenery.
+		
+		MCLayer *t_prev_layer;
+		t_prev_layer = nil;
+		
+		MCLayer *t_prev_layers;
+		uint32_t t_prev_count;
+		if (p_previous != nil && p_previous->getref()->layer_getlayers(t_prev_layers, t_prev_count) && t_count != 0)
+			t_prev_layer = &t_prev_layers[t_count - 1];
+		
 		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
 		MCRectangle32 t_device_rect;
 		t_device_rect = MCRectangle32GetTransformedBounds(p_control->geteffectiverect(), getstack()->getdevicetransform());
-		MCTileCacheRemoveScenery(t_tilecache, p_control -> layer_getid(), t_device_rect);
 		
-		// MW-2012-10-11: [[ Bug ]] Redraw glitch caused by resetting the layer id
-		//   before removing the layer.
-		// MW-2012-09-21: [[ Bug 10005 ]] Make sure we reset the layer attrs so we
-		//   don't try and reuse a dead scenery layer.
-		p_control -> layer_resetattrs();
-		
-		// If there is no previous or next control we have no tweaks to ids
-		// to perform.
-		if (p_previous == nil || p_next == nil)
-			return;
-
-		// Now layer ids for new layers percolate from the next layer, so the
-		// original layers are always at the bottom of the stack. If the next
-		// layer has a different id than us, make sure all previous layers
-		// with the same id match it.
-		uint32_t t_before_layer_id;
-		t_before_layer_id = p_previous -> getref() -> layer_getid();
-
-		// The layer below us has the same id so there's nothing to do, we are
-		// removing a 'new' layer before its been redrawn.
-		if (t_before_layer_id == p_control -> layer_getid())
-			return;
-		
-		// MW-2013-06-21: [[ Bug 10974 ]] If the layer below is a sprite, then removing
-		//   this layer will increase the lower limit of the scenery stack above
-		//   thus there is nothing to do.
-		if (p_previous -> getref() -> layer_issprite())
-			return;
-
-		// The layer below us has a different id, so this is an existing layer
-		// and thus we must ensure all layers above us now use the id of the
-		// layer below.
-		MCObjptr *t_objptr;
-		t_objptr = p_next;
-		while(t_objptr != p_previous && t_objptr -> getref() -> layer_getid() == p_control -> layer_getid())
+		for (uint32_t i = 0; i < t_count; i++)
 		{
-			t_objptr -> getref() -> layer_setid(t_before_layer_id);
-			t_objptr = t_objptr -> next();
+			// If the control has no layer id then there is nothing to do.
+			if (MCLayerIsActive(t_layers[i]))
+			{
+				if (t_layers[i].is_sprite)
+				{
+					// If the control is on a dynamic layer then remove any associated sprite.
+					MCTileCacheRemoveSprite(t_tilecache, t_layers[i].id);
+					
+					// MW-2012-09-21: [[ Bug 10005 ]] Make sure we reset the layer attrs so we
+					//   don't try and reuse a dead sprite.
+					MCLayerReset(t_layers[i]);
+				}
+				else
+				{
+					// Remove the scenery.
+					t_layers[i].region = t_device_rect;
+					MCTileCacheRemoveScenery(t_tilecache, t_layers[i].id, t_layers[i].region);
+					
+					// MW-2012-10-11: [[ Bug ]] Redraw glitch caused by resetting the layer id
+					//   before removing the layer.
+					// MW-2012-09-21: [[ Bug 10005 ]] Make sure we reset the layer attrs so we
+					//   don't try and reuse a dead scenery layer.
+					MCLayerReset(t_layers[i]);
+					
+					bool t_reset;
+					t_reset = true;
+					
+					// If there is no previous control we have no tweaks to ids to perform.
+					t_reset = t_prev_layer != nil;
+					
+					// The layer below us has the same id so there's nothing to do, we are
+					// removing a 'new' layer before its been redrawn.
+					if (t_reset)
+						t_reset = t_prev_layer->id != t_layers[i].id;
+					
+					// MW-2013-06-21: [[ Bug 10974 ]] If the layer below is a sprite, then removing
+					//   this layer will increase the lower limit of the scenery stack above
+					//   thus there is nothing to do.
+					if (t_reset)
+						t_reset = !t_prev_layer->is_sprite;
+
+					// The layer below us has a different id, so this is an existing layer
+					// and thus we must ensure all layers above us now use the id of the
+					// layer below.
+					for (uint32_t j = i + 1; j < t_count && t_reset; j++)
+					{
+						t_reset = t_layers[j].id == t_layers[i].id;
+						if (t_reset)
+							t_layers[j].id = t_prev_layer->id;
+					}
+					
+					// If there is no next control we have no tweaks to ids to perform.
+					if (t_reset && p_next != nil)
+					{
+						MCObjptr *t_objptr;
+						t_objptr = p_next;
+						
+						while(t_objptr != p_previous && t_reset)
+						{
+							MCLayer *t_next_layers;
+							uint32_t t_next_count;
+							
+							t_reset = t_objptr->getref()->layer_getlayers(t_next_layers, t_next_count) && t_count != 0;
+							
+							for (uint32_t j = 0; j < t_next_count && t_reset; j++)
+							{
+								t_reset = t_next_layers[j].id == t_layers[i].id;
+								if (t_reset)
+									t_next_layers[j].id = t_prev_layer->id;
+							}
+							
+							t_objptr = t_objptr -> next();
+						}
+					}
+				}
+			}
+			t_prev_layer = &t_layers[i];
 		}
 	}
 }
@@ -1089,12 +1164,7 @@ bool device_render_background(void *p_context, MCGContextRef p_target, const MCR
 	return tilecache_device_renderer(MCCard::tilecache_render_background, p_context, p_target, p_rectangle, false);
 }
 
-uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache,
-								const MCLayerAttributes &p_old, const MCLayerAttributes &p_new,
-								const MCRectangle32 &p_region, const MCRectangle32 &p_clip,
-								uint32_t p_opacity, uint32_t p_ink,
-								MCTileCacheRenderCallback p_callback, void *p_context
-								)
+uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache, const MCLayer &p_old, const MCLayer &p_new)
 {
 	// Take note of whether the spriteness of a layer has changed.
 	bool t_old_is_sprite;
@@ -1103,16 +1173,16 @@ uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache,
 	// Initialize the common layer props.
 	MCTileCacheLayer t_layer;
 	t_layer . id = p_new.id;
-	t_layer . opacity = p_opacity;
-	t_layer . ink = p_ink;
-	t_layer . callback = p_callback;
-	t_layer . context = p_context;
+	t_layer . opacity = p_new.opacity;
+	t_layer . ink = p_new.ink;
+	t_layer . callback = p_new.callback;
+	t_layer . context = p_new.context;
+	
+	t_layer . region = p_new.region;
+	t_layer . clip = p_new.clip;
 	
 	// The opaqueness of a layer has already been computed.
 	t_layer . is_opaque = p_new.is_opaque;
-	
-	t_layer . region = p_region;
-	t_layer . clip = p_clip;
 	
 	// Now render the layer - what method we use depends on whether the
 	// layer is a sprite or not.
@@ -1128,7 +1198,6 @@ uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache,
 			t_layer . id = 0;
 		}
 		
-		t_layer . callback = testtilecache_device_sprite_renderer;
 		MCTileCacheRenderSprite(p_tilecache, t_layer);
 	}
 	else
@@ -1145,7 +1214,6 @@ uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache,
 		//   by the clip directly.
 		t_layer . region = MCRectangle32Intersect(t_layer . region, t_layer . clip);
 		
-		t_layer . callback = testtilecache_device_scenery_renderer;
 		MCTileCacheRenderScenery(p_tilecache, t_layer);
 	}
 	
@@ -1160,14 +1228,14 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 	if (p_reset_layers)
 		layer_resetattrs();
 	
-	MCLayerAttributes t_old_attribs;
-	t_old_attribs = m_layer;
+	MCLayer t_old_layer;
+	t_old_layer = m_layer;
 	
 	// Sync the attributes, make sure we commit the new values.
 	layer_computeattrs(true);
 	
-	MCLayerAttributes t_new_attribs;
-	t_new_attribs = m_layer;
+	MCLayer t_new_layer;
+	t_new_layer = m_layer;
 	
 	// Now compute the layer's region/clip.
 	MCRectangle t_layer_region, t_layer_clip;
@@ -1202,17 +1270,16 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 	
 	// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 	// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-	MCRectangle32 t_region, t_clip;
-	t_region = MCRectangle32GetTransformedBounds(t_layer_region, p_device_transform);
-	t_clip = MCRectangle32GetTransformedBounds(t_layer_clip, p_device_transform);
+	t_new_layer.region = MCRectangle32GetTransformedBounds(t_layer_region, p_device_transform);
+	t_new_layer.clip = MCRectangle32GetTransformedBounds(t_layer_clip, p_device_transform);
+	
+	t_new_layer.opacity = getopacity();
+	t_new_layer.ink = getink();
+	t_new_layer.callback = t_callback;
+	t_new_layer.context = this;
 	
 	uint32_t t_new_id;
-	t_new_id = MCLayerUpdateTileCache(p_tilecache,
-									  t_old_attribs, t_new_attribs,
-									  t_region, t_clip,
-									  getopacity(), getink(),
-									  t_callback, this
-									  );
+	t_new_id = MCLayerUpdateTileCache(p_tilecache, t_old_layer, t_new_layer);
 	
 	m_layer.id = t_new_id;
 }
