@@ -347,7 +347,7 @@ void MCImage::reopen(bool p_newfile, bool p_lock_size)
 	uint2 opencount = opened;
 	
 	// MW-2011-10-01: [[ Bug 9777 ]] Make sure we don't clobber layer attrs.
-	if (layer_is_active())
+	if (layer_has_active_layer())
 		state |= CS_KEEP_LAYER;
 	
 	while (opened)
@@ -365,7 +365,7 @@ void MCImage::reopen(bool p_newfile, bool p_lock_size)
 		open();
 	
 	// MW-2011-10-01: [[ Bug 9777 ]] Turn off anti-layer clobbering state.
-	if (layer_is_active())
+	if (layer_has_active_layer())
 		state &= ~CS_KEEP_LAYER;
 	
 	flags = oldflags;

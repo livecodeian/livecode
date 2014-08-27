@@ -201,15 +201,15 @@ public:
 	// MW-2011-09-07: [[ Layers ]] Returns the content rect of the layer (if scrolling).
 	MCRectangle layer_getcontentrect(void);
 
-	bool layer_is_active(void) { return MCLayerIsActive(m_layer); }
+	bool layer_has_active_layer(void);
 	
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is a sprite or not.
-	bool layer_issprite(void) { return m_layer.is_sprite; }
+	bool layer_issprite(void);
 	// MW-2011-09-21: [[ Layers ]] Returns whether the layer is scrolling or not.
-	bool layer_isscrolling(void) { return m_layer.mode == kMCLayerModeHintScrolling; }
+	bool layer_isscrolling(void);
 
 	// MW-2011-09-21: [[ Layers ]] Make sure the layerMode attr's are accurate.
-	MCLayerModeHint layer_computeattrs(bool commit);
+	virtual MCLayerModeHint layer_computeattrs(bool commit);
 
 	virtual bool layer_compute_unadorned(void);
 	virtual bool layer_compute_opaque(void);
@@ -219,6 +219,7 @@ public:
 	void layer_resetattrs(void);
 	
 	virtual bool layer_getlayers(MCLayer *&r_layers, uint32_t &r_count);
+	virtual bool layer_get_content_layer(MCLayer *&r_layer);
 	
 	virtual void render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, const MCGAffineTransform &p_device_transform, bool p_reset_layers);
 

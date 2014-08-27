@@ -52,6 +52,10 @@ class MCGroup : public MCControl
     bool m_clips_to_rect : 1;
     
 	static uint2 labeloffset;
+	
+	MCLayer m_layers[3];
+	bool m_layers_decomposed;
+	
 public:
 	MCGroup();
 	MCGroup(const MCGroup &gref);
@@ -181,6 +185,16 @@ public:
 	virtual bool layer_compute_unadorned(void);
 	virtual bool layer_compute_opaque(void);
 	virtual MCLayerModeHint layer_compute_mode(bool p_unadorned, bool p_opaque);
+	
+	virtual MCLayerModeHint layer_computeattrs(bool commit);
+
+	virtual bool layer_getlayers(MCLayer *&r_layers, uint32_t &r_count);
+	virtual bool layer_get_content_layer(MCLayer *&r_layer);
+
+	void drawbackground(MCDC *p_dc, const MCRectangle &p_dirty);
+	void drawcontent(MCDC *p_dc, const MCRectangle &p_dirty, bool p_is_sprite);
+	void drawforeground(MCDC *p_dc, const MCRectangle &p_dirty);
+	
 	
 	MCGroup *next()
 	{

@@ -54,11 +54,74 @@ bool MCControl::layer_getlayers(MCLayer *&r_layers, uint32_t &r_count)
 	return true;
 }
 
+bool MCGroup::layer_getlayers(MCLayer *&r_layers, uint32_t &r_count)
+{
+	if (m_layers_decomposed)
+	{
+		r_layers = m_layers;
+		r_count = 3;
+		
+		return true;
+	}
+	else
+		return MCControl::layer_getlayers(r_layers, r_count);
+}
+
+bool MCControl::layer_has_active_layer(void)
+{
+	MCLayer *t_layers;
+	uint32_t t_count;
+	if (!layer_getlayers(t_layers, t_count))
+		return false;
+	
+	for (uint32_t i = 0; i < t_count; i++)
+		if (MCLayerIsActive(t_layers[i]))
+			return true;
+	
+	return false;
+}
+
+bool MCControl::layer_issprite()
+{
+	MCLayer *t_layers;
+	uint32_t t_count;
+	
+	if (!layer_getlayers(t_layers, t_count))
+		return false;
+	
+	for (uint32_t i = 0; i < t_count; i++)
+		if (t_layers[i].is_sprite)
+			return true;
+	
+	return false;
+}
+
+bool MCControl::layer_isscrolling(void)
+{
+	MCLayer *t_layers;
+	uint32_t t_count;
+	
+	if (!layer_getlayers(t_layers, t_count))
+		return false;
+	
+	for (uint32_t i = 0; i < t_count; i++)
+		if (t_layers[i].mode == kMCLayerModeHintScrolling)
+			return true;
+	
+	return false;
+}
+
 // This method resets the layer-related attribtues to defaults and marks them
 // as needing recomputing.
 void MCControl::layer_resetattrs(void)
 {
-	MCLayerReset(m_layer);
+	MCLayer *t_layers;
+	uint32_t t_count;
+	if (!layer_getlayers(t_layers, t_count))
+		return;
+	
+	for (uint32_t i = 0; i < t_count; i++)
+		MCLayerReset(t_layers[i]);
 	m_layer_attr_changed = true;
 }
 
@@ -228,6 +291,18 @@ MCLayerModeHint MCGroup::layer_compute_mode(bool p_unadorned, bool p_opaque)
 	return t_layer_mode;
 }
 
+bool MCControl::layer_get_content_layer(MCLayer *&r_layer)
+{
+	r_layer = &m_layer;
+}
+
+bool MCGroup::layer_get_content_layer(MCLayer *&r_layer)
+{
+	r_layer = &m_layers[1];
+}
+
+static bool testtilecache_device_sprite_renderer(void *p_context, MCGContextRef p_target, const MCRectangle32& p_rectangle);
+static bool testtilecache_device_scenery_renderer(void *p_context, MCGContextRef p_target, const MCRectangle32& p_rectangle);
 // This method updates all the layer attributes of the control to make sure they
 // are consistent with the controls current set of flags. If commit is false,
 // then the new layermode is returned without changing anything.
@@ -280,11 +355,83 @@ MCLayerModeHint MCControl::layer_computeattrs(bool p_commit)
 		m_layer.is_opaque = t_is_opaque;
 		m_layer.is_sprite = t_is_sprite;
 
+		if (t_is_sprite)
+			m_layer.callback = testtilecache_device_sprite_renderer;
+		else
+			m_layer.callback = testtilecache_device_scenery_renderer;
+		m_layer.context = this;
+		
 		// We've updated the layer attrs now - yay!
 		m_layer_attr_changed = false;
 	}
 
 	return m_layer.mode;
+}
+
+static bool device_render_group_background(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle);
+static bool device_render_group_foreground(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle);
+static bool device_render_group_content(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle);
+static bool device_render_group_content_sprite(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle);
+// This method updates all the layer attributes of the control to make sure they
+// are consistent with the controls current set of flags. If commit is false,
+// then the new layermode is returned without changing anything.
+MCLayerModeHint MCGroup::layer_computeattrs(bool p_commit)
+{
+	// If the attrs have not changed, there is nothing to do.
+	if (!m_layer_attr_changed)
+	{
+		if (!m_layers_decomposed)
+			return m_layer.mode;
+		else
+			return m_layers[1].mode;
+	}
+	
+	bool t_decompose;
+	t_decompose = getbitmapeffects() == nil && getopacity() == 255 && (ink == GXcopy || ink == GXblendSrcOver);
+	
+	/* TODO - add / remove layers if decompose is changed */
+	m_layers_decomposed = t_decompose;
+
+	if (!t_decompose)
+	{
+		return MCControl::layer_computeattrs(p_commit);
+	}
+	
+	if (!p_commit)
+		return m_layer_mode_hint;
+	
+	// If the layer id is 0, then it means we should clear current settings.
+	for (uint32_t i = 0; i < 3; i++)
+		if (!MCLayerIsActive(m_layers[i]))
+			MCLayerReset(m_layers[i]);
+	
+	m_layers[0].is_sprite = false;
+
+	uint16_t t_index;
+	// IM-2014-05-02: [[ Bugfix 12044 ]] An opaque group is fully opaque if its background is a color and it disallows overscroll
+	m_layers[0].is_opaque = getflag(F_OPAQUE) && getcindex(DI_BACK, t_index) && !getflag(F_UNBOUNDED_HSCROLL | F_UNBOUNDED_VSCROLL);
+	
+	m_layers[0].mode = kMCLayerModeHintStatic;
+	m_layers[0].callback = device_render_group_background;
+	m_layers[0].context = this;
+	
+	m_layers[1].is_sprite = m_layer_mode_hint == kMCLayerModeHintDynamic || m_layer_mode_hint == kMCLayerModeHintScrolling;
+	m_layers[1].is_opaque = false;
+	m_layers[1].mode = m_layer_mode_hint;
+	m_layers[1].callback = m_layers[1].is_sprite ? device_render_group_content_sprite : device_render_group_content;
+	m_layers[1].context = this;
+	
+	m_layers[2].is_sprite = false;
+	m_layers[2].is_opaque = false;
+	m_layers[2].mode = kMCLayerModeHintStatic;
+	m_layers[2].callback = device_render_group_foreground;
+	m_layers[2].context = this;
+	
+	m_layer = m_layers[1];
+	
+	m_layer_attr_changed = false;
+	
+	return m_layers[1].mode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -484,11 +631,15 @@ void MCControl::layer_contentoriginchanged(int32_t p_dx, int32_t p_dy)
 	if (!opened)
 		return;
 
-	if (!layer_isscrolling())
+	MCLayer *t_layer;
+	if (!layer_get_content_layer(t_layer))
 		return;
-
+	
+	if (t_layer->mode != kMCLayerModeHintScrolling)
+		return;
+	
 	// If the layer id is 0 then return.
-	if (!layer_is_active())
+	if (!MCLayerIsActive(*t_layer))
 		return;
 
 	// Fetch the tilecache we are using.
@@ -505,7 +656,7 @@ void MCControl::layer_contentoriginchanged(int32_t p_dx, int32_t p_dy)
 	MCGFloat t_dx, t_dy;
 	t_dx = t_device_point.x;
 	t_dy = t_device_point.y;
-	MCTileCacheScrollSprite(t_tilecache, m_layer.id, t_dx, t_dy);
+	MCTileCacheScrollSprite(t_tilecache, t_layer->id, t_dx, t_dy);
 }
 
 void MCControl::layer_scrolled(void)
@@ -548,7 +699,8 @@ void MCControl::layer_dirtycontentrect(const MCRectangle& p_updated_rect, bool p
 
 	// Note that this method is only called if layer_isscrolling() is true, which is only
 	// possible if we have a tilecache.
-	if (layer_is_active())
+	MCLayer *t_layer;
+	if (layer_get_content_layer(t_layer) && MCLayerIsActive(*t_layer))
 	{
 		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
@@ -558,7 +710,7 @@ void MCControl::layer_dirtycontentrect(const MCRectangle& p_updated_rect, bool p
 		MCRectangle32 t_device_updated_rect, t_device_content_rect;
 		t_device_updated_rect = MCRectangle32GetTransformedBounds(p_updated_rect, t_transform);
 		t_device_content_rect = MCRectangle32GetTransformedBounds(t_content_rect, t_transform);
-		MCTileCacheUpdateSprite(t_tilecache, m_layer.id, MCRectangle32Offset(t_device_updated_rect, -t_device_content_rect . x, -t_device_content_rect . y));
+		MCTileCacheUpdateSprite(t_tilecache, t_layer->id, MCRectangle32Offset(t_device_updated_rect, -t_device_content_rect . x, -t_device_content_rect . y));
 	}
 		
 	// Add the rect to the update region - but only if instructed (update_card will be
@@ -615,34 +767,43 @@ void MCControl::layer_dirtyeffectiverect(const MCRectangle& p_effective_rect, bo
 	// Notify any tilecache of the changes.
 	if (t_tilecache != nil)
 	{
-		// We must be in tile-cache mode with a top-level control, but if the layer
-		// id is zero, there is nothing to do.
-		if (!t_control -> layer_is_active())
+		MCLayer *t_layers;
+		uint32_t t_count;
+		
+		if (!t_control->layer_getlayers(t_layers, t_count))
 			return;
-
-		// How we handle the layer depends on whether it is a sprite or not.
-		if (!t_control -> layer_issprite())
+		
+		for (uint32_t i = 0; i < t_count; i++)
 		{
-			// Non-dynamic layers are scenery in the tilecache, their rect is in
-			// canvas co-ords.
-			MCTileCacheUpdateScenery(t_tilecache, t_control -> m_layer.id, t_device_rect);
-		}
-		else
-		{
-			// Dynamic layers are sprites in the tilecache, their rect is in
-			// sprite co-ords.
-			MCRectangle t_offset_rect;
-			t_offset_rect = MCU_offset_rect(t_dirty_rect, -t_control -> rect . x, -t_control -> rect . y);
+			// We must be in tile-cache mode with a top-level control, but if the layer
+			// id is zero, there is nothing to do.
+			if (!MCLayerIsActive(t_layers[i]))
+				continue;
 			
-			// MW-2013-10-29: [[ Bug 11329 ]] Tilecache expects sprite rects to be
-			//   relative to top-left of sprite.
-			t_transform . tx = 0.0f;
-			t_transform . ty = 0.0f;
-			
-			// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
-			// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-			t_device_rect = MCRectangle32GetTransformedBounds(t_offset_rect, t_transform);
-			MCTileCacheUpdateSprite(t_tilecache, t_control -> m_layer.id, t_device_rect);
+			// How we handle the layer depends on whether it is a sprite or not.
+			if (!t_layers[i].is_sprite)
+			{
+				// Non-dynamic layers are scenery in the tilecache, their rect is in
+				// canvas co-ords.
+				MCTileCacheUpdateScenery(t_tilecache, t_layers[i].id, t_device_rect);
+			}
+			else
+			{
+				// Dynamic layers are sprites in the tilecache, their rect is in
+				// sprite co-ords.
+				MCRectangle t_offset_rect;
+				t_offset_rect = MCU_offset_rect(t_dirty_rect, -t_control -> rect . x, -t_control -> rect . y);
+				
+				// MW-2013-10-29: [[ Bug 11329 ]] Tilecache expects sprite rects to be
+				//   relative to top-left of sprite.
+				t_transform . tx = 0.0f;
+				t_transform . ty = 0.0f;
+				
+				// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+				// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+				t_device_rect = MCRectangle32GetTransformedBounds(t_offset_rect, t_transform);
+				MCTileCacheUpdateSprite(t_tilecache, t_layers[i].id, t_device_rect);
+			}
 		}
 	}
 
@@ -705,61 +866,70 @@ void MCControl::layer_changeeffectiverect(const MCRectangle& p_old_effective_rec
 		static_cast<MCCard *>(parent) -> layer_dirtyrect(t_new_effective_rect);
 	}
 	
-	// We must be in tile-cache mode with a top-level control, but if the layer
-	// id is zero, there is nothing to do.
-	if (!layer_is_active())
+	MCLayer *t_layers;
+	uint32_t t_count;
+	
+	if (!layer_getlayers(t_layers, t_count))
 		return;
-
-	if (!layer_issprite())
+	
+	for (uint32_t i = 0; i < t_count; i++)
 	{
-		// Non-dynamic layers are scenery in the tilecache, and we must use old
-		// new effective rects so that the appropriate tiles get flushed. Note
-		// that 'force_update' has no effect here as reshaping a scenery layer
-		// implicitly invalidates all tiles it touches.
-		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
-		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
-		MCGAffineTransform t_transform;
-		t_transform = getstack()->getdevicetransform();
+		// We must be in tile-cache mode with a top-level control, but if the layer
+		// id is zero, there is nothing to do.
+		if (!MCLayerIsActive(t_layers[i]))
+			continue;
 		
-		MCRectangle32 t_old_device_rect, t_new_device_rect;
-		t_old_device_rect = MCRectangle32GetTransformedBounds(p_old_effective_rect, t_transform);
-		t_new_device_rect = MCRectangle32GetTransformedBounds(t_new_effective_rect, t_transform);
-		
-		MCTileCacheReshapeScenery(t_tilecache, m_layer.id, t_old_device_rect, t_new_device_rect);
-	}
-	else
-	{
-		// Dynamic layers are sprites in the tilecache, and there is nothing to
-		// do unless 'force update' is required. In particular, if the layer is
-		// just moving then no redraw of the layer will be needed. Note, however,
-		// that this implicitly assumes that 'force update' is true if the content
-		// in a sprite-relative co-ord system has changed.
-		if (p_force_update)
+		if (!t_layers[i].is_sprite)
 		{
-			MCRectangle t_rect;
-			
-			// If the layer is not scrolling, just use the width/height from the
-			// effective rect; otherwise use content width/height.
-			if (!layer_isscrolling())
-				t_rect = p_old_effective_rect;
-			else
-				t_rect = layer_getcontentrect();
-				
-			t_rect . x = t_rect . y = 0;
-			
+			// Non-dynamic layers are scenery in the tilecache, and we must use old
+			// new effective rects so that the appropriate tiles get flushed. Note
+			// that 'force_update' has no effect here as reshaping a scenery layer
+			// implicitly invalidates all tiles it touches.
 			// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 			// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
 			MCGAffineTransform t_transform;
 			t_transform = getstack()->getdevicetransform();
 			
-			// MW-2013-10-29: [[ Bug 11329 ]] Tilecache expects sprite rects to be
-			//   relative to top-left of sprite.
-			t_transform . tx = 0.0f;
-			t_transform . ty = 0.0f;
+			MCRectangle32 t_old_device_rect, t_new_device_rect;
+			t_old_device_rect = MCRectangle32GetTransformedBounds(p_old_effective_rect, t_transform);
+			t_new_device_rect = MCRectangle32GetTransformedBounds(t_new_effective_rect, t_transform);
 			
-			MCRectangle32 t_device_rect;
-			t_device_rect = MCRectangle32GetTransformedBounds(t_rect, t_transform);
-			MCTileCacheUpdateSprite(t_tilecache, m_layer.id, t_device_rect);
+			MCTileCacheReshapeScenery(t_tilecache, t_layers[i].id, t_old_device_rect, t_new_device_rect);
+		}
+		else
+		{
+			// Dynamic layers are sprites in the tilecache, and there is nothing to
+			// do unless 'force update' is required. In particular, if the layer is
+			// just moving then no redraw of the layer will be needed. Note, however,
+			// that this implicitly assumes that 'force update' is true if the content
+			// in a sprite-relative co-ord system has changed.
+			if (p_force_update)
+			{
+				MCRectangle t_rect;
+				
+				// If the layer is not scrolling, just use the width/height from the
+				// effective rect; otherwise use content width/height.
+				if (!layer_isscrolling())
+					t_rect = p_old_effective_rect;
+				else
+					t_rect = layer_getcontentrect();
+				
+				t_rect . x = t_rect . y = 0;
+				
+				// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
+				// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
+				MCGAffineTransform t_transform;
+				t_transform = getstack()->getdevicetransform();
+				
+				// MW-2013-10-29: [[ Bug 11329 ]] Tilecache expects sprite rects to be
+				//   relative to top-left of sprite.
+				t_transform . tx = 0.0f;
+				t_transform . ty = 0.0f;
+				
+				MCRectangle32 t_device_rect;
+				t_device_rect = MCRectangle32GetTransformedBounds(t_rect, t_transform);
+				MCTileCacheUpdateSprite(t_tilecache, t_layers[i].id, t_device_rect);
+			}
 		}
 	}
 }
@@ -1159,9 +1329,94 @@ bool MCCard::tilecache_render_background(void *p_context, MCContext *p_target, c
 	return true;
 }
 
-bool device_render_background(void *p_context, MCGContextRef p_target, const MCRectangle32& p_rectangle)
+static bool device_render_background(void *p_context, MCGContextRef p_target, const MCRectangle32& p_rectangle)
 {
 	return tilecache_device_renderer(MCCard::tilecache_render_background, p_context, p_target, p_rectangle, false);
+}
+
+static bool render_group_background(void *p_context, MCContext *p_target, const MCRectangle &p_dirty)
+{
+	MCGroup *t_group;
+	t_group = static_cast<MCGroup*>(p_context);
+	
+	t_group->drawbackground(p_target, p_dirty);
+
+	return true;
+}
+
+static bool device_render_group_background(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle)
+{
+	return tilecache_device_renderer(render_group_background, p_context, p_target, p_rectangle, false);
+}
+
+static bool render_group_foreground(void *p_context, MCContext *p_target, const MCRectangle &p_dirty)
+{
+	MCGroup *t_group;
+	t_group = static_cast<MCGroup*>(p_context);
+	
+	t_group->drawforeground(p_target, p_dirty);
+	
+	return true;
+}
+
+static bool device_render_group_foreground(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle)
+{
+	return tilecache_device_renderer(render_group_foreground, p_context, p_target, p_rectangle, false);
+}
+
+static bool render_group_content(void *p_context, MCContext *p_target, const MCRectangle &p_dirty)
+{
+	MCGroup *t_group;
+	t_group = static_cast<MCGroup*>(p_context);
+	
+	t_group->drawcontent(p_target, p_dirty, false);
+	
+	return true;
+}
+
+static bool device_render_group_content(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle)
+{
+	return tilecache_device_renderer(render_group_content, p_context, p_target, p_rectangle, false);
+}
+
+static bool render_group_content_sprite(void *p_context, MCContext *p_target, const MCRectangle& p_rectangle)
+{
+	MCGroup *t_control;
+	t_control = static_cast<MCGroup *>(p_context);
+	
+	// A scrolling layer is an unadorned group.
+	bool t_scrolling;
+	t_scrolling = t_control -> layer_isscrolling();
+	
+	MCRectangle t_control_rect, t_dirty_rect;
+	if (!t_scrolling)
+	{
+		t_control_rect = t_control -> geteffectiverect();
+		t_dirty_rect = MCU_intersect_rect(t_control_rect, MCU_offset_rect(p_rectangle, t_control_rect . x, t_control_rect . y));
+	}
+	else
+	{
+		t_control_rect = t_control -> layer_getcontentrect();
+		t_dirty_rect = MCU_intersect_rect(t_control_rect, MCU_offset_rect(p_rectangle, t_control_rect . x, t_control_rect . y));
+	}
+	
+	if (MCU_empty_rect(t_dirty_rect))
+		return true;
+	
+	// IM-2014-07-03: [[ GraphicsPerformance ]] Context origin is the topleft of the sprite so adjust to card coords.
+	p_target -> setorigin(t_control_rect . x, t_control_rect . y);
+	p_target -> cliprect(t_dirty_rect);
+	p_target -> setfunction(GXcopy);
+	p_target -> setopacity(255);
+	
+	t_control -> drawcontent(p_target, t_dirty_rect, true);
+	
+	return true;
+}
+
+static bool device_render_group_content_sprite(void *p_context, MCGContextRef p_target, const MCRectangle32 &p_rectangle)
+{
+	return tilecache_device_renderer(render_group_content_sprite, p_context, p_target, p_rectangle, true);
 }
 
 uint32_t MCLayerUpdateTileCache(MCTileCacheRef p_tilecache, const MCLayer &p_old, const MCLayer &p_new)
@@ -1241,7 +1496,7 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 	// Sync the attributes, make sure we commit the new values.
 	layer_computeattrs(true);
 	
-	for (uint32_t i = 0; i < t_count; i++)
+	for (int32_t i = t_count - 1; i >= 0; i--)
 	{
 		// Now compute the layer's region/clip.
 		MCRectangle t_layer_region, t_layer_clip;
@@ -1268,11 +1523,11 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 		// IM-2013-10-14: [[ FullscreenMode ]] Constrain each layer to the visible area
 		t_layer_clip = MCU_intersect_rect(t_layer_clip, p_clip);
 		
-		MCTileCacheRenderCallback t_callback;
-		if (t_layers[i].is_sprite)
-			t_callback = testtilecache_device_sprite_renderer;
-		else
-			t_callback = testtilecache_device_scenery_renderer;
+//		MCTileCacheRenderCallback t_callback;
+//		if (t_layers[i].is_sprite)
+//			t_callback = testtilecache_device_sprite_renderer;
+//		else
+//			t_callback = testtilecache_device_scenery_renderer;
 		
 		// IM-2013-08-21: [[ ResIndependence ]] Use device coords for tilecache operation
 		// IM-2013-09-30: [[ FullscreenMode ]] Use stack transform to get device coords
@@ -1281,8 +1536,8 @@ void MCControl::render(MCTileCacheRef p_tilecache, const MCRectangle &p_clip, co
 		
 		t_layers[i].opacity = getopacity();
 		t_layers[i].ink = getink();
-		t_layers[i].callback = t_callback;
-		t_layers[i].context = this;
+//		t_layers[i].callback = t_callback;
+//		t_layers[i].context = this;
 		
 		uint32_t t_new_id;
 		t_new_id = MCLayerUpdateTileCache(p_tilecache, t_old_layers[i], t_layers[i]);

@@ -2497,8 +2497,86 @@ void MCGroup::boundcontrols()
 //     drawthemegroup(False)
 //   else if mac && no back colour && no back pix && stack picture && screen is target then
 //     copy stack background
-//   else 
+//   else
 //     fill with background
+void MCGroup::drawbackground(MCDC *dc, const MCRectangle &dirty)
+{
+	if (MCcurtheme != NULL &&
+		getstack() -> hasmenubar() && hasname(getstack() -> getmenubar()) &&
+		MCcurtheme -> drawmenubarbackground(dc, dirty, getrect(), MCmenubar == this))
+		return;
+	
+	if (flags & F_OPAQUE)
+	{
+		uint2 i;
+		if (MCcurtheme && borderwidth == DEFAULT_BORDER &&
+			!getcindex(DI_BACK, i) && !getpindex(DI_BACK, i) &&
+			flags & F_SHOW_BORDER && borderwidth && flags & F_3D &&
+			MCcurtheme->iswidgetsupported(WTHEME_TYPE_GROUP_FRAME) )
+		{
+			drawthemegroup(dc,dirty,False);
+		}
+		else
+		{
+			if (MCcurtheme == NULL || !getstack() -> ismetal() ||
+				!MCcurtheme -> drawmetalbackground(dc, dirty, rect, this))
+			{
+				setforeground(dc, DI_BACK, False);
+				dc->fillrect(rect);
+			}
+		}
+	}
+}
+
+void MCGroup::drawcontent(MCDC *dc, const MCRectangle &dirty, bool p_sprite)
+{
+	// MW-2011-10-03: If we are rendering in sprite mode, we don't clip further. (Previously
+	//   we would clip to the 'minrect' in this case, but sometimes that isn't in sync with
+	//   what we want to draw).
+	MCRectangle drect;
+	if (!p_sprite)
+		drect = MCU_intersect_rect(dirty, getgrect());
+	else
+		drect = dirty;
+	if (drect.width != 0 && drect.height != 0 && controls != NULL)
+	{
+		MCControl *cptr = controls;
+		do
+		{
+			// IM-2014-06-11: [[ Bug 12557 ]] Use common control redraw method
+			cptr->redraw(dc, drect);
+			
+			cptr = cptr->next();
+		}
+		while (cptr != controls);
+	}
+}
+
+void MCGroup::drawforeground(MCDC *dc, const MCRectangle &dirty)
+{
+	dc->save();
+	dc->cliprect(dirty);
+	
+	if (flags & F_HSCROLLBAR)
+	{
+		MCRectangle hrect = MCU_intersect_rect(hscrollbar->getrect(), dirty);
+		if (hrect.width != 0 && hrect.height != 0)
+			hscrollbar->draw(dc, hrect, false, false);
+	}
+	
+	if (flags & F_VSCROLLBAR)
+	{
+		MCRectangle vrect = MCU_intersect_rect(vscrollbar->getrect(), dirty);
+		if (vrect.width != 0 && vrect.height != 0)
+			vscrollbar->draw(dc, vrect, false, false);
+	}
+	
+	dc->restore();
+	
+	dc -> setopacity(255);
+	dc -> setfunction(GXcopy);
+	drawbord(dc, dirty);
+}
 
 // MW-2011-09-06: [[ Redraw ]] Added 'sprite' option - if true, ink and opacity are not set.
 void MCGroup::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p_sprite)
@@ -2526,101 +2604,9 @@ void MCGroup::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p
 		}
 	}
 
-	// MW-2009-06-14: This flag will be set to true if when the group
-	//   renders an opaque background.
-	bool t_is_opaque;
-	t_is_opaque = false;
-
-	if (MCcurtheme != NULL &&
-		getstack() -> hasmenubar() && hasname(getstack() -> getmenubar()) &&
-		MCcurtheme -> drawmenubarbackground(dc, dirty, getrect(), MCmenubar == this))
-	{
-		// MW-2009-06-14: Vista menu backgrounds are assumed opaque
-		t_is_opaque = true;
-	}
-	else if (flags & F_OPAQUE)
-	{
-		uint2 i;
-		if (MCcurtheme && borderwidth == DEFAULT_BORDER &&
-		        !getcindex(DI_BACK, i) && !getpindex(DI_BACK, i) &&
-		        flags & F_SHOW_BORDER && borderwidth && flags & F_3D &&
-		        MCcurtheme->iswidgetsupported(WTHEME_TYPE_GROUP_FRAME) )
-		{
-			// MW-2009-06-14: It appears that themed group borders are never opaque
-			//   but this needs to be verified on the different platforms.
-			drawthemegroup(dc,dirty,False);
-		}
-		else
-		{
-			if (MCcurtheme == NULL || !getstack() -> ismetal() ||
-				!MCcurtheme -> drawmetalbackground(dc, dirty, rect, this))
-			{
-				setforeground(dc, DI_BACK, False);
-				// IM-2014-04-16: [[ Bug 12044 ]] The sprite background should fill the whole redraw area. 
-				if (!p_sprite)
-					dc->fillrect(rect);
-				else
-					dc->fillrect(p_dirty);
-			}
-
-			// MW-2009-06-14: Non-themed, opaque backgrounds are (unsurprisingly!) opaque.
-			t_is_opaque = true;
-		}
-	}
-
-	// MW-2009-06-14: Change opaqueness if it is so
-	bool t_was_opaque;
-	if (t_is_opaque)
-		t_was_opaque = dc -> changeopaque(t_is_opaque);
-
-	// MW-2011-10-03: If we are rendering in sprite mode, we don't clip further. (Previously
-	//   we would clip to the 'minrect' in this case, but sometimes that isn't in sync with
-	//   what we want to draw).
-	MCRectangle drect;
-	if (!p_sprite)
-		drect = MCU_intersect_rect(dirty, getgrect());
-	else
-		drect = dirty;
-	if (drect.width != 0 && drect.height != 0 && controls != NULL)
-	{
-		MCControl *cptr = controls;
-		do
-		{
-			// IM-2014-06-11: [[ Bug 12557 ]] Use common control redraw method
-			cptr->redraw(dc, drect);
-
-			cptr = cptr->next();
-		}
-		while (cptr != controls);
-	}
-
-	if (t_is_opaque)
-		dc -> changeopaque(t_was_opaque);
-
-	drect = MCU_intersect_rect(dirty, rect);
-	
-	dc->save();
-	dc->cliprect(drect);
-
-	if (flags & F_HSCROLLBAR)
-	{
-		MCRectangle hrect = MCU_intersect_rect(hscrollbar->getrect(), drect);
-		if (hrect.width != 0 && hrect.height != 0)
-			hscrollbar->draw(dc, hrect, false, false);
-	}
-
-	if (flags & F_VSCROLLBAR)
-	{
-		MCRectangle vrect = MCU_intersect_rect(vscrollbar->getrect(), drect);
-		if (vrect.width != 0 && vrect.height != 0)
-			vscrollbar->draw(dc, vrect, false, false);
-	}
-
-	dc->restore();
-	
-	dc -> setopacity(255);
-	dc -> setfunction(GXcopy);
-	drawbord(dc, dirty);
+	drawbackground(dc, dirty);
+	drawcontent(dc, dirty, p_sprite);
+	drawforeground(dc, dirty);
 
 	if (!p_isolated)
 	{
