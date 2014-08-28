@@ -298,7 +298,13 @@ bool MCControl::layer_get_content_layer(MCLayer *&r_layer)
 
 bool MCGroup::layer_get_content_layer(MCLayer *&r_layer)
 {
-	r_layer = &m_layers[1];
+	if (m_layers_decomposed)
+	{
+		r_layer = &m_layers[1];
+		return true;
+	}
+	else
+		return MCControl::layer_get_content_layer(r_layer);
 }
 
 static bool testtilecache_device_sprite_renderer(void *p_context, MCGContextRef p_target, const MCRectangle32& p_rectangle);
@@ -389,8 +395,12 @@ MCLayerModeHint MCGroup::layer_computeattrs(bool p_commit)
 	bool t_decompose;
 	t_decompose = getbitmapeffects() == nil && getopacity() == 255 && (ink == GXcopy || ink == GXblendSrcOver);
 	
+	if (m_layers_decomposed != t_decompose)
+	{
+		m_layers_decomposed = t_decompose;
+		layer_resetattrs();
+	}
 	/* TODO - add / remove layers if decompose is changed */
-	m_layers_decomposed = t_decompose;
 
 	if (!t_decompose)
 	{

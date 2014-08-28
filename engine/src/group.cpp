@@ -76,6 +76,9 @@ MCGroup::MCGroup()
     
     // MW-2014-06-20: [[ ClipsToRect ]] Initialize to false.
     m_clips_to_rect = false;
+	
+	m_layers_decomposed = false;
+	layer_resetattrs();
 }
 
 MCGroup::MCGroup(const MCGroup &gref) : MCControl(gref)
@@ -153,6 +156,9 @@ MCGroup::MCGroup(const MCGroup &gref, bool p_copy_ids) : MCControl(gref)
 	// MERG-2013-06-02: [[ GrpLckUpdates ]] Make sure the group's updates are unlocked
 	//   when cloned.
     m_updates_locked = false;
+
+	m_layers_decomposed = false;
+	layer_resetattrs();
 }
 
 MCGroup::~MCGroup()
