@@ -35,6 +35,11 @@ extern bool MCIPCReadInt32(MCIPCRef p_ipc, int32_t &r_value);
 
 extern bool MCIPCWriteCString(MCIPCRef p_ipc, const char *p_value);
 extern bool MCIPCReadCString(MCIPCRef p_ipc, char *&r_value);
+extern bool MCIPCFreeCString(char *p_value);
+
+extern bool MCIPCWriteCStringArray(MCIPCRef p_ipc, const char **p_strings, int32_t p_count);
+extern bool MCIPCReadCStringArray(MCIPCRef p_ipc, char **&r_strings, int32_t &r_count);
+extern bool MCIPCFreeCStringArray(char **p_strings, int32_t p_count);
 
 typedef struct _MCIPCRectangle
 {

@@ -162,7 +162,61 @@ void MCIPCFreeValue(MCIPCValue *p_value)
 	MCMemoryDelete(p_value);
 }
 
+bool MCIPCWriteCStringArray(MCIPCRef p_ipc, char **p_strings, int32_t p_count)
+{
+	if (!MCIPCWriteInt32(p_count))
+		return false;
+	
+	for (int32_t i = 0; i < p_count; i++)
+	{
+		if (!MCIPCWriteCString(p_ipc, p_strings[i]))
+			return false;
+	}
+	
+	return true;
+}
 
+bool MCIPCReadCStringArray(MCIPCRef p_ipc, char **&r_strings, int32_t &r_count)
+{
+	bool t_success;
+	t_success = true;
+	
+	char **t_strings;
+	t_strings = nil;
+	
+	int32_t t_count;
+	t_count = 0;
+	
+	if (t_success)
+		t_success = MCIPCReadInt32(p_ipc, t_count);
+	
+	if (t_success)
+		t_success = MCMemoryNewArray(t_count, t_strings);
+	
+	for (int32_t i = 0; t_success && i < t_count; i++)
+		t_success = MCIPCReadCString(p_ipc, t_strings[i]);
+	
+	if (t_success)
+	{
+		r_strings = t_strings;
+		r_count = t_count;
+	}
+	else
+		MCIPCFreeCStringArray(t_strings, t_count);
+	
+	return t_success;
+}
+
+void MCIPCFreeCStringArray(char **p_strings, int32_t p_count)
+{
+	if (p_strings == nil)
+		return;
+	
+	for (int32_t i = 0; i < p_count; i++)
+		MCIPCFreeCString(p_strings[i]);
+	
+	MCMemoryDeleteArray(p_strings);
+}
 
 bool MCIPCSendMessage(MCIPCRef p_ipc, const uint8_t *p_data, uint32_t p_length)
 {

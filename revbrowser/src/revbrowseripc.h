@@ -20,7 +20,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "ipc.h"
 #include "revbrowser.h"
 
-typedef enum _MCRevBrowserIPCMessage
+typedef enum _MCRevBrowserIPCMessageType
 {
 	kMCRevBrowserIPCMessageInit,
 	kMCRevBrowserIPCMessageShutdown,
@@ -53,7 +53,7 @@ typedef enum _MCRevBrowserIPCMessage
 	
 	// Message response
 	kMCRevBrowserIPCMessageResult,
-} MCRevBrowserIPCMessage;
+} MCRevBrowserIPCMessageType;
 
 typedef enum _MCRevBrowserProperty
 {
@@ -83,9 +83,14 @@ typedef enum _MCRevBrowserProperty
 	MCRevBrowserPropertyFormattedRect,
 } MCRevBrowserProperty;
 
+extern bool MCRevBrowserIPCWriteProperty(MCIPCRef p_ipc, MCRevBrowserProperty p_property);
+extern bool MCRevBrowserIPCReadProperty(MCIPCRef p_ipc, MCRevBrowserProperty &r_property);
+
+//////////
+
 struct MCRevBrowserIPCMessageCreateBrowser
 {
-	int window_id;
+	int32_t window_id;
 };
 extern bool MCRevBrowserIPCWriteCreateBrowser(MCIPCRef p_ipc, const MCRevBrowserIPCMessageCreateBrowser &p_message);
 extern bool MCRevBrowserIPCReadCreateBrowser(MCIPCRef p_ipc, MCRevBrowserIPCMessageCreateBrowser &r_message);
@@ -174,6 +179,32 @@ struct MCRevBrowserIPCMessageResult
 extern bool MCRevBrowserIPCWriteResult(MCIPCRef p_ipc, const MCRevBrowserIPCMessageResult &p_message);
 extern bool MCRevBrowserIPCReadResult(MCIPCRef p_ipc, MCRevBrowserIPCMessageResult &r_message);
 extern void MCRevBrowserIPCFreeResult(MCRevBrowserIPCMessageResult &p_message);
+
+//////////
+
+struct MCRevBrowserIPCMessage
+{
+	MCRevBrowserIPCMessageType type;
+	
+	union
+	{
+		MCRevBrowserIPCMessageCreateBrowser create_browser;
+		MCRevBrowserIPCMessageDestroyBrowser destroy_browser;
+		MCRevBrowserIPCMessageGetProperty get_property;
+		MCRevBrowserIPCMessageSetProperty set_property;
+		MCRevBrowserIPCMessageExecuteScript execute_script;
+		MCRevBrowserIPCMessageCallScript call_script;
+		MCRevBrowserIPCMessageFindString find_string;
+		MCRevBrowserIPCMessageAddJavaScriptHandler add_javascript_handler;
+		MCRevBrowserIPCMessageRemoveJavaScriptHandler remove_javascript_handler;
+		MCRevBrowserIPCMessageCallback callback;
+		MCRevBrowserIPCMessageResult result;
+	};
+};
+
+extern bool MCRevBrowserIPCWriteMessage(MCIPCRef p_ipc, const MCRevBrowserIPCMessage *p_message);
+extern bool MCRevBrowserIPCReadMessage(MCIPCRef p_ipc, MCRevBrowserIPCMessage *&r_message);
+extern void MCRevBrowserIPCFreeMessage(MCRevBrowserIPCMessage *p_message);
 
 class MCRevBrowserIPC : public CWebBrowserBase;
 
