@@ -36,6 +36,39 @@ extern bool MCIPCReadInt32(MCIPCRef p_ipc, int32_t &r_value);
 extern bool MCIPCWriteCString(MCIPCRef p_ipc, const char *p_value);
 extern bool MCIPCReadCString(MCIPCRef p_ipc, char *&r_value);
 
+typedef struct _MCIPCRectangle
+{
+	int32_t left, top, right, bottom;
+} MCIPCRectangle;
+
+extern bool MCIPCWriteRectangle(MCIPCRef p_ipc, const MCIPCRectangle &p_rect);
+extern bool MCIPCReadRectangle(MCIPCRef p_ipc, MCIPCRectangle &r_rect);
+
+typedef enum _MCIPCValueType
+{
+	MCIPCValueTypeBoolean,
+	MCIPCValueTypeString,
+	MCIPCValueTypeRectangle,
+	MCIPCValueTypeInt32,
+} MCIPCValueType;
+
+typedef struct _MCIPCValue
+{
+	MCIPCValueType type;
+	
+	union
+	{
+		bool boolean;
+		char *string;
+		int32_t int32;
+		MCIPCRectangle rectangle;
+	} value;
+} MCIPCValue;
+
+extern bool MCIPCWriteValue(MCIPCRef p_ipc, const MCIPCValue *p_value);
+extern bool MCIPCReadValue(MCIPCRef p_ipc, MCIPCValue *&r_value);
+extern void MCIPCFreeValue(MCIPCValue *p_value);
+
 //extern bool MCIPCSendMessage(MCIPCRef p_ipc, const uint8_t *p_data, uint32_t p_length);
 //extern bool MCIPCWaitForMessage(MCIPCRef p_ipc, uint8_t *&r_data, uint32_t &r_length);
 
