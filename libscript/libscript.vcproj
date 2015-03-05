@@ -148,6 +148,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\module-codeunit.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\module-encoding.cpp"
 				>
 			</File>

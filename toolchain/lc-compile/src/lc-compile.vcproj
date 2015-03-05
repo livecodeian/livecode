@@ -30,6 +30,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				CommandLine="IF NOT EXIST $(InputDir)_G_ mkdir $(InputDir)_G_"
 			/>
 			<Tool
 				Name="Bison"
@@ -75,7 +76,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
+				AdditionalDependencies="advapi32.lib sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
 				AdditionalLibraryDirectories="$(SolutionDir)prebuilt\lib\win32\i386"
 			/>
 			<Tool
@@ -110,6 +111,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				CommandLine="IF NOT EXIST $(InputDir)_G_ mkdir $(InputDir)_G_"
 			/>
 			<Tool
 				Name="Bison"
@@ -154,7 +156,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
+				AdditionalDependencies="advapi32.lib sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
 				AdditionalLibraryDirectories="$(SolutionDir)prebuilt\lib\win32\i386"
 			/>
 			<Tool

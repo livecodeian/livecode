@@ -8,7 +8,7 @@
 			Name="Gentle"
 			DisplayName="Gentle"
 			CommandLine="$(SolutionDir)_build\windows\$(ConfigurationName)\gentle.exe [SubDir] [inputs]"
-			Outputs="$(InputName).c"
+			Outputs="[SubDir]\$(InputName).c"
 			FileExtensions="*.g"
 			ExecutionDescription="Running gentle for [inputs]..."
 			>
