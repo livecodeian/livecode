@@ -33,18 +33,8 @@
 				CommandLine="IF NOT EXIST $(InputDir)_G_ mkdir $(InputDir)_G_"
 			/>
 			<Tool
-				Name="Bison"
-				OutName="_G_\gen.tab.c"
-			/>
-			<Tool
 				Name="lc-bootstrap-compile"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="Reflex"
-				SubDir="_G_"
+				ExecutionBucket="2"
 			/>
 			<Tool
 				Name="Gentle"
@@ -54,54 +44,81 @@
 				Name="VCXMLDataGeneratorTool"
 			/>
 			<Tool
+				Name="Reflex"
+				ExecutionBucket="4"
+				SubDir="_G_"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+				ExecutionBucket="5"
+			/>
+			<Tool
+				Name="Bison"
+				ExecutionBucket="6"
+				OutName="_G_\gen.tab.c"
+			/>
+			<Tool
 				Name="VCWebServiceProxyGeneratorTool"
+				ExecutionBucket="7"
 			/>
 			<Tool
 				Name="VCMIDLTool"
+				ExecutionBucket="8"
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				ExecutionBucket="9"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)libscript\include&quot;;&quot;$(SolutionDir)toolchain\lc-compile\src&quot;"
 				PreprocessorDefinitions="YY_NO_UNISTD_H=1;YYDEBUG=1"
 				WarningLevel="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
+				ExecutionBucket="10"
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
+				ExecutionBucket="11"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				ExecutionBucket="12"
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				ExecutionBucket="13"
 				AdditionalDependencies="advapi32.lib sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
 				AdditionalLibraryDirectories="$(SolutionDir)prebuilt\lib\win32\i386"
 			/>
 			<Tool
 				Name="VCALinkTool"
+				ExecutionBucket="14"
 			/>
 			<Tool
 				Name="VCManifestTool"
+				ExecutionBucket="15"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
+				ExecutionBucket="16"
 			/>
 			<Tool
 				Name="VCBscMakeTool"
+				ExecutionBucket="17"
 			/>
 			<Tool
 				Name="VCFxCopTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+				ExecutionBucket="19"
+			/>
+			<Tool
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
+				ExecutionBucket="20"
 			/>
 		</Configuration>
 		<Configuration
@@ -114,17 +131,8 @@
 				CommandLine="IF NOT EXIST $(InputDir)_G_ mkdir $(InputDir)_G_"
 			/>
 			<Tool
-				Name="Bison"
-			/>
-			<Tool
 				Name="lc-bootstrap-compile"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="Reflex"
-				SubDir="_G_"
+				ExecutionBucket="2"
 			/>
 			<Tool
 				Name="Gentle"
@@ -134,54 +142,80 @@
 				Name="VCXMLDataGeneratorTool"
 			/>
 			<Tool
+				Name="Reflex"
+				ExecutionBucket="4"
+				SubDir="_G_"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+				ExecutionBucket="5"
+			/>
+			<Tool
+				Name="Bison"
+				ExecutionBucket="6"
+			/>
+			<Tool
 				Name="VCWebServiceProxyGeneratorTool"
+				ExecutionBucket="7"
 			/>
 			<Tool
 				Name="VCMIDLTool"
+				ExecutionBucket="8"
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				ExecutionBucket="9"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)libscript\include&quot;;&quot;$(SolutionDir)toolchain\lc-compile\src&quot;"
 				PreprocessorDefinitions="YY_NO_UNISTD_H=1;YYDEBUG=1"
 				WarningLevel="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
+				ExecutionBucket="10"
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
+				ExecutionBucket="11"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				ExecutionBucket="12"
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				ExecutionBucket="13"
 				AdditionalDependencies="advapi32.lib sicudt.lib sicuin.lib sicuio.lib sicule.lib siculx.lib sicuuc.lib"
 				AdditionalLibraryDirectories="$(SolutionDir)prebuilt\lib\win32\i386"
 			/>
 			<Tool
 				Name="VCALinkTool"
+				ExecutionBucket="14"
 			/>
 			<Tool
 				Name="VCManifestTool"
+				ExecutionBucket="15"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
+				ExecutionBucket="16"
 			/>
 			<Tool
 				Name="VCBscMakeTool"
+				ExecutionBucket="17"
 			/>
 			<Tool
 				Name="VCFxCopTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+				ExecutionBucket="19"
+			/>
+			<Tool
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
+				ExecutionBucket="20"
 			/>
 		</Configuration>
 	</Configurations>
