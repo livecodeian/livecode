@@ -59,10 +59,30 @@ bool MCBrowserJavaStringToUtf8String(JNIEnv* env, jstring p_java_string, char *&
 	}
 	
 	t_success = nil != (t_utf8_string = env -> GetStringUTFChars(p_java_string, NULL));
+	
+	if (t_success)
+	{
+		t_success = MCCStringCloneSubstring(t_utf8_string, env -> GetStringUTFLength(p_java_string), r_utf8_string);
+		env -> ReleaseStringUTFChars(p_java_string, t_utf8_string);
+	}
+	
+	return t_success;
+}
+
+bool MCBrowserJavaStringToBrowserString(JNIEnv* env, jstring p_java_string, MCBrowserStringRef &r_string)
+{
+    bool t_success = true;
+    
+	const char *t_utf8_string = nil;
+	
+    if (p_java_string == nil)
+		return MCBrowserStringCreateWithUTF8String(nil, r_string);
+	
+	t_success = nil != (t_utf8_string = env -> GetStringUTFChars(p_java_string, NULL));
     
     if (t_success)
     {
-		t_success = MCCStringCloneSubstring(t_utf8_string, env -> GetStringUTFLength(p_java_string), r_utf8_string);
+		t_success = MCBrowserStringCreateWithUTF8Substring(t_utf8_string, env -> GetStringUTFLength(p_java_string), r_string);
         env -> ReleaseStringUTFChars(p_java_string, t_utf8_string);
     }
     
@@ -173,9 +193,9 @@ public:
 		return true;
 	}
 	
-	bool GetStringValue(jstring p_string, char *&r_string)
+	bool GetStringValue(jstring p_string, MCBrowserStringRef &r_string)
 	{
-		return MCBrowserJavaStringToUtf8String(m_env, p_string, r_string);
+		return MCBrowserJavaStringToBrowserString(m_env, p_string, r_string);
 	}
 	
 	bool GetBrowserValue(jobject p_obj, MCBrowserValue &r_value)
@@ -209,15 +229,15 @@ public:
 		}
 		else if (IsString(p_obj))
 		{
-			char *t_val;
+			MCBrowserStringRef t_val;
 			t_val = nil;
 			t_success = GetStringValue((jstring)p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetUTF8String(r_value, t_val);
+				t_success = MCBrowserValueSetString(r_value, t_val);
 			
 			if (t_val != nil)
-				MCCStringFree(t_val);
+				MCBrowserStringRelease(t_val);
 		}
 		else if (IsJSONArray(p_obj))
 		{
@@ -370,7 +390,7 @@ public:
 			if (t_success)
 				t_success = GetJSONArrayElement(t_names, i, (jobject&)t_key);
 			
-			char *t_key_string;
+			MCBrowserStringRef t_key_string;
 			t_key_string = nil;
 			
 			if (t_success)
@@ -388,7 +408,7 @@ public:
 				t_success = MCBrowserDictionarySetValue(t_dict, t_key_string, t_value);
 			
 			if (t_key_string != nil)
-				MCCStringFree(t_key_string);
+				MCBrowserStringRelease(t_key_string);
 			
 			if (t_key != nil)
 				m_env->DeleteLocalRef(t_key);

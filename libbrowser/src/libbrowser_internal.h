@@ -155,7 +155,7 @@ struct MCBrowserValue
 		bool boolean;
 		int32_t integer;
 		double double_val;
-		char *utf8_string;
+		MCBrowserStringRef string;
 		MCBrowserListRef array;
 		MCBrowserDictionaryRef dictionary;
 	};
@@ -170,8 +170,8 @@ bool MCBrowserValueSetInteger(MCBrowserValue &self, int32_t p_value);
 bool MCBrowserValueGetInteger(MCBrowserValue &self, int32_t &r_value);
 bool MCBrowserValueSetDouble(MCBrowserValue &self, double p_value);
 bool MCBrowserValueGetDouble(MCBrowserValue &self, double &r_value);
-bool MCBrowserValueSetUTF8String(MCBrowserValue &self, const char *p_value);
-bool MCBrowserValueGetUTF8String(MCBrowserValue &self, char *&r_value);
+bool MCBrowserValueSetString(MCBrowserValue &self, MCBrowserStringRef p_value);
+bool MCBrowserValueGetString(MCBrowserValue &self, MCBrowserStringRef &r_value);
 bool MCBrowserValueSetList(MCBrowserValue &self, MCBrowserListRef p_value);
 bool MCBrowserValueGetList(MCBrowserValue &self, MCBrowserListRef &r_value);
 bool MCBrowserValueSetDictionary(MCBrowserValue &self, MCBrowserDictionaryRef p_value);
@@ -181,8 +181,8 @@ bool MCBrowserListSetValue(MCBrowserListRef p_list, uint32_t p_index, const MCBr
 bool MCBrowserListGetValue(MCBrowserListRef p_list, uint32_t p_index, MCBrowserValue &r_value);
 bool MCBrowserListAppendValue(MCBrowserListRef p_list, const MCBrowserValue &p_value);
 
-bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dict, const char *p_key, const MCBrowserValue &p_value);
-bool MCBrowserDictionaryGetValue(MCBrowserDictionaryRef p_dict, const char *p_key, MCBrowserValue &r_value);
+bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dict, MCBrowserStringRef p_key, const MCBrowserValue &p_value);
+bool MCBrowserDictionaryGetValue(MCBrowserDictionaryRef p_dict, MCBrowserStringRef p_key, MCBrowserValue &r_value);
 
 ////////////////////////////////////////////////////////////////////////////////
 

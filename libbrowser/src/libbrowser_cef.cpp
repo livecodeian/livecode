@@ -55,6 +55,26 @@ bool MCCefStringFromUtf8String(const char *p_u8_string, CefString &r_cef_string)
 	return MCCefStringFromUtf8String(p_u8_string, r_cef_string.GetWritableStruct());
 }
 
+bool MCCefStringToBrowserString(const CefString &p_cef_string, MCBrowserStringRef &r_string)
+{
+	bool t_success;
+	t_success = true;
+	
+	char *t_utf8_string;
+	t_utf8_string = nil;
+	
+	if (t_success)
+		t_success = MCCefStringToUtf8String(p_cef_string, t_utf8_string);
+	
+	if (t_success)
+		t_success = MCBrowserStringCreateWithUTF8String(t_utf8_string, r_string);
+	
+	if (t_utf8_string != nil)
+		MCCStringFree(t_utf8_string);
+	
+	return t_success;
+}
+
 bool MCCefStringToUInt(const CefString &p_string, uint32_t &r_int)
 {
 	char_t * t_tmp_string;
@@ -116,10 +136,10 @@ bool MCCefListToBrowserList(CefRefPtr<CefListValue> p_list, MCBrowserListRef &r_
 			
 			case VTYPE_STRING:
 			{
-				char *t_string = nil;
-				t_success = MCCefStringToUtf8String(p_list->GetString(i), t_string) && MCBrowserListSetUTF8String(t_list, i, t_string);
+				MCBrowserStringRef t_string = nil;
+				t_success = MCCefStringToBrowserString(p_list->GetString(i), t_string) && MCBrowserListSetString(t_list, i, t_string);
 				if (t_string != nil)
-					MCCStringFree(t_string);
+					MCBrowserStringRelease(t_string);
 				break;
 			}
 			
@@ -169,11 +189,11 @@ bool MCCefDictionaryToBrowserDictionary(CefRefPtr<CefDictionaryValue> p_dict, MC
 	
 	for (CefDictionaryValue::KeyList::iterator i = t_key_list.begin(); t_success && i < t_key_list.end(); i++)
 	{
-		char *t_key;
+		MCBrowserStringRef t_key;
 		t_key = nil;
 		
 		if (t_success)
-			t_success = MCCefStringToUtf8String(*i, t_key);
+			t_success = MCCefStringToBrowserString(*i, t_key);
 		
 		if (t_success)
 		{
@@ -193,10 +213,11 @@ bool MCCefDictionaryToBrowserDictionary(CefRefPtr<CefDictionaryValue> p_dict, MC
 				
 				case VTYPE_STRING:
 				{
-					char *t_string = nil;
-					t_success = MCCefStringToUtf8String(p_dict->GetString(*i), t_string) && MCBrowserDictionarySetUTF8String(t_dict, t_key, t_string);
+					MCBrowserStringRef t_string;
+					t_string = nil;
+					t_success = MCCefStringToBrowserString(p_dict->GetString(*i), t_string) && MCBrowserDictionarySetString(t_dict, t_key, t_string);
 					if (t_string != nil)
-						MCCStringFree(t_string);
+						MCBrowserStringRelease(t_string);
 					break;
 				}
 				
@@ -223,7 +244,7 @@ bool MCCefDictionaryToBrowserDictionary(CefRefPtr<CefDictionaryValue> p_dict, MC
 		}
 		
 		if (t_key != nil)
-			MCCStringFree(t_key);
+			MCBrowserStringRelease(t_key);
 	}
 	
 	if (t_success)
