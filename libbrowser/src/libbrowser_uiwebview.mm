@@ -32,11 +32,12 @@
 bool MCNSNumberToBrowserValue(NSNumber *p_number, MCBrowserValue &r_value);
 bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValue &r_value);
 bool MCNSArrayToBrowserValue(NSArray * p_array, MCBrowserValue &r_value);
+bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValue &r_value);
 
 bool MCNSObjectToBrowserValue(id p_obj, MCBrowserValue &r_value)
 {
 	if ([p_obj isKindOfClass: [NSString class]])
-		return MCBrowserValueSetUTF8String(r_value, [(NSString*)p_obj cStringUsingEncoding: NSUTF8StringEncoding]);
+		return MCNSStringToBrowserValue((NSString*)p_obj, r_value);
 	else if ([p_obj isKindOfClass: [NSNumber class]])
 		return MCNSNumberToBrowserValue((NSNumber*)p_obj, r_value);
 	else if ([p_obj isKindOfClass: [NSDictionary class]])
@@ -45,6 +46,19 @@ bool MCNSObjectToBrowserValue(id p_obj, MCBrowserValue &r_value)
 		return MCNSArrayToBrowserValue((NSArray*)p_obj, r_value);
 	
 	return false;
+}
+
+bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValue &r_value)
+{
+	MCBrowserStringRef t_string = nil;
+	if (!MCBrowserStringCreateWithUTF8String([p_string cStringUsingEncoding: NSUTF8StringEncoding], t_string))
+		return false;
+	
+	bool t_success;
+	t_success = MCBrowserValueSetString(r_value, t_string);
+	
+	MCBrowserStringRelease(t_string);
+	return t_success;
 }
 
 bool MCNSDictionaryToBrowserDictionary(NSDictionary *p_dictionary, MCBrowserDictionaryRef &r_dict)
@@ -63,18 +77,26 @@ bool MCNSDictionaryToBrowserDictionary(NSDictionary *p_dictionary, MCBrowserDict
 			MCBrowserValue t_value;
 			MCBrowserMemoryClear(&t_value, sizeof(MCBrowserValue));
 			
-			t_success = [p_key isKindOfClass: [NSString class]];
+			if (t_success)
+				t_success = [p_key isKindOfClass: [NSString class]];
+			
+			MCBrowserStringRef t_key;
+			t_key = nil;
+			
+			if (t_success)
+				t_success = MCBrowserStringCreateWithUTF8String([(NSString*)p_key cStringUsingEncoding: NSUTF8StringEncoding], t_key);
 			
 			if (t_success)
 				t_success = MCNSObjectToBrowserValue(p_obj, t_value);
 			
 			if (t_success)
-				t_success = MCBrowserDictionarySetValue(t_dict, [(NSString*)p_key cStringUsingEncoding: NSUTF8StringEncoding], t_value);
+				t_success = MCBrowserDictionarySetValue(t_dict, t_key, t_value);
 			
 			if (!t_success)
 				*r_stop = YES;
 			
 			MCBrowserValueClear(t_value);
+			MCBrowserStringRelease(t_key);
 		}];
 	
 	if (t_success)
