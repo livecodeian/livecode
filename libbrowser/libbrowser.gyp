@@ -26,6 +26,7 @@
 			'sources':
 			[
 				'include/libbrowser.h',
+				'include/libbrowser_value.h',
 				
 				'src/libbrowser.cpp',
 				'src/libbrowser_internal.h',
