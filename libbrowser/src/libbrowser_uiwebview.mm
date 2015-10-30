@@ -29,33 +29,33 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MCNSNumberToBrowserValue(NSNumber *p_number, MCBrowserValue &r_value);
-bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValue &r_value);
-bool MCNSArrayToBrowserValue(NSArray * p_array, MCBrowserValue &r_value);
-bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValue &r_value);
+bool MCNSNumberToBrowserValue(NSNumber *p_number, MCBrowserValueRef p_value);
+bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValueRef p_value);
+bool MCNSArrayToBrowserValue(NSArray * p_array, MCBrowserValueRef p_value);
+bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValueRef p_value);
 
-bool MCNSObjectToBrowserValue(id p_obj, MCBrowserValue &r_value)
+bool MCNSObjectToBrowserValue(id p_obj, MCBrowserValueRef p_value)
 {
 	if ([p_obj isKindOfClass: [NSString class]])
-		return MCNSStringToBrowserValue((NSString*)p_obj, r_value);
+		return MCNSStringToBrowserValue((NSString*)p_obj, p_value);
 	else if ([p_obj isKindOfClass: [NSNumber class]])
-		return MCNSNumberToBrowserValue((NSNumber*)p_obj, r_value);
+		return MCNSNumberToBrowserValue((NSNumber*)p_obj, p_value);
 	else if ([p_obj isKindOfClass: [NSDictionary class]])
-		return MCNSDictionaryToBrowserValue((NSDictionary*)p_obj, r_value);
+		return MCNSDictionaryToBrowserValue((NSDictionary*)p_obj, p_value);
 	else if ([p_obj isKindOfClass: [NSArray class]])
-		return MCNSArrayToBrowserValue((NSArray*)p_obj, r_value);
+		return MCNSArrayToBrowserValue((NSArray*)p_obj, p_value);
 	
 	return false;
 }
 
-bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValue &r_value)
+bool MCNSStringToBrowserValue(NSString *p_string, MCBrowserValueRef p_value)
 {
 	MCBrowserStringRef t_string = nil;
 	if (!MCBrowserStringCreateWithUTF8String([p_string cStringUsingEncoding: NSUTF8StringEncoding], t_string))
 		return false;
 	
 	bool t_success;
-	t_success = MCBrowserValueSetString(r_value, t_string);
+	t_success = MCBrowserValueSetString(p_value, t_string);
 	
 	MCBrowserStringRelease(t_string);
 	return t_success;
@@ -74,8 +74,8 @@ bool MCNSDictionaryToBrowserDictionary(NSDictionary *p_dictionary, MCBrowserDict
 	
 	if (t_success)
 		[p_dictionary enumerateKeysAndObjectsUsingBlock: ^(id p_key, id p_obj, BOOL *r_stop) {
-			MCBrowserValue t_value;
-			MCBrowserMemoryClear(&t_value, sizeof(MCBrowserValue));
+			__MCBrowserValue t_value;
+			MCBrowserMemoryClear(t_value);
 			
 			if (t_success)
 				t_success = [p_key isKindOfClass: [NSString class]];
@@ -87,15 +87,15 @@ bool MCNSDictionaryToBrowserDictionary(NSDictionary *p_dictionary, MCBrowserDict
 				t_success = MCBrowserStringCreateWithUTF8String([(NSString*)p_key cStringUsingEncoding: NSUTF8StringEncoding], t_key);
 			
 			if (t_success)
-				t_success = MCNSObjectToBrowserValue(p_obj, t_value);
+				t_success = MCNSObjectToBrowserValue(p_obj, &t_value);
 			
 			if (t_success)
-				t_success = MCBrowserDictionarySetValue(t_dict, t_key, t_value);
+				t_success = MCBrowserDictionarySetValue(t_dict, t_key, &t_value);
 			
 			if (!t_success)
 				*r_stop = YES;
 			
-			MCBrowserValueClear(t_value);
+			MCBrowserValueClear(&t_value);
 			MCBrowserStringRelease(t_key);
 		}];
 	
@@ -120,18 +120,18 @@ bool MCNSArrayToBrowserList(NSArray *p_array, MCBrowserListRef &r_list)
 	
 	if (t_success)
 		[p_array enumerateObjectsUsingBlock: ^(id p_obj, NSUInteger p_index, BOOL *r_stop) {
-			MCBrowserValue t_value;
-			MCBrowserMemoryClear(&t_value, sizeof(MCBrowserValue));
+			__MCBrowserValue t_value;
+			MCBrowserMemoryClear(t_value);
 			
-			t_success = MCNSObjectToBrowserValue(p_obj, t_value);
+			t_success = MCNSObjectToBrowserValue(p_obj, &t_value);
 			
 			if (t_success)
-				t_success = MCBrowserListSetValue(t_list, p_index, t_value);
+				t_success = MCBrowserListSetValue(t_list, p_index, &t_value);
 			
 			if (!t_success)
 				*r_stop = YES;
 			
-			MCBrowserValueClear(t_value);
+			MCBrowserValueClear(&t_value);
 		}];
 	
 	if (t_success)
@@ -142,21 +142,21 @@ bool MCNSArrayToBrowserList(NSArray *p_array, MCBrowserListRef &r_list)
 	return t_success;
 }
 
-bool MCNSNumberToBrowserValue(NSNumber *p_number, MCBrowserValue &r_value)
+bool MCNSNumberToBrowserValue(NSNumber *p_number, MCBrowserValueRef p_value)
 {
 	if (p_number == @(YES))
-		return MCBrowserValueSetBoolean(r_value, true);
+		return MCBrowserValueSetBoolean(p_value, true);
 	else if (p_number == @(NO))
-		return MCBrowserValueSetBoolean(r_value, false);
+		return MCBrowserValueSetBoolean(p_value, false);
 	else if (MCCStringEqual([p_number objCType], @encode(int)))
-		return MCBrowserValueSetInteger(r_value, [p_number intValue]);
+		return MCBrowserValueSetInteger(p_value, [p_number intValue]);
 	else
-		return MCBrowserValueSetDouble(r_value, [p_number doubleValue]);
+		return MCBrowserValueSetDouble(p_value, [p_number doubleValue]);
 }
 
 //////////
 
-bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValue &r_value)
+bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValueRef p_value)
 {
 	bool t_success;
 	t_success = true;
@@ -167,14 +167,14 @@ bool MCNSDictionaryToBrowserValue(NSDictionary *p_dictionary, MCBrowserValue &r_
 	t_success = MCNSDictionaryToBrowserDictionary(p_dictionary, t_dict);
 	
 	if (t_success)
-		t_success = MCBrowserValueSetDictionary(r_value, t_dict);
+		t_success = MCBrowserValueSetDictionary(p_value, t_dict);
 	
 	MCBrowserDictionaryRelease(t_dict);
 	
 	return t_success;
 }
 
-bool MCNSArrayToBrowserValue(NSArray *p_array, MCBrowserValue &r_value)
+bool MCNSArrayToBrowserValue(NSArray *p_array, MCBrowserValueRef p_value)
 {
 	bool t_success;
 	t_success = true;
@@ -185,7 +185,7 @@ bool MCNSArrayToBrowserValue(NSArray *p_array, MCBrowserValue &r_value)
 	t_success = MCNSArrayToBrowserList(p_array, t_list);
 	
 	if (t_success)
-		t_success = MCBrowserValueSetList(r_value, t_list);
+		t_success = MCBrowserValueSetList(p_value, t_list);
 	
 	MCBrowserListRelease(t_list);
 	

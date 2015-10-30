@@ -21,54 +21,69 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCBrowserValueClear(MCBrowserValue &p_value)
+bool MCBrowserValueGetType(MCBrowserValueRef p_value, MCBrowserValueType &r_type)
 {
-	switch (p_value.type)
+	if (p_value == nil)
+		return false;
+	
+	r_type = p_value->type;
+	return true;
+}
+
+void MCBrowserValueClear(MCBrowserValueRef p_value)
+{
+	if (p_value == nil)
+		return;
+	
+	switch (p_value->type)
 	{
 		case kMCBrowserValueTypeString:
-			MCBrowserStringRelease(p_value.string);
+			MCBrowserStringRelease(p_value->string);
 			break;
 		
 		case kMCBrowserValueTypeList:
-			MCBrowserListRelease(p_value.array);
+			MCBrowserListRelease(p_value->array);
 			break;
 		
 		case kMCBrowserValueTypeDictionary:
-			MCBrowserDictionaryRelease(p_value.dictionary);
+			MCBrowserDictionaryRelease(p_value->dictionary);
 			break;
 		
 		default:
 			break;
 	}
 	
-	p_value.type = kMCBrowserValueTypeNone;
+	p_value->type = kMCBrowserValueTypeNone;
 }
 
-bool MCBrowserValueCopy(const MCBrowserValue &p_src, MCBrowserValue &r_dst)
+bool MCBrowserValueCopy(const MCBrowserValueRef p_src, MCBrowserValueRef r_dst)
 {
-	switch (p_src.type)
+	if (p_src == nil || r_dst == nil)
+		return false;
+	
+	switch (p_src->type)
 	{
 		case kMCBrowserValueTypeBoolean:
-			return MCBrowserValueSetBoolean(r_dst, p_src.boolean);
+			return MCBrowserValueSetBoolean(r_dst, p_src->boolean);
 		
 		case kMCBrowserValueTypeInteger:
-			return MCBrowserValueSetInteger(r_dst, p_src.integer);
+			return MCBrowserValueSetInteger(r_dst, p_src->integer);
 		
 		case kMCBrowserValueTypeDouble:
-			return MCBrowserValueSetDouble(r_dst, p_src.double_val);
+			return MCBrowserValueSetDouble(r_dst, p_src->double_val);
 		
 		case kMCBrowserValueTypeNone:
 			MCBrowserValueClear(r_dst);
 			return true;
 		
 		case kMCBrowserValueTypeString:
-			return MCBrowserValueSetString(r_dst, p_src.string);
+			return MCBrowserValueSetString(r_dst, p_src->string);
 		
 		case kMCBrowserValueTypeList:
-			return MCBrowserValueSetList(r_dst, p_src.array);
+			return MCBrowserValueSetList(r_dst, p_src->array);
 		
 		case kMCBrowserValueTypeDictionary:
-			return MCBrowserValueSetDictionary(r_dst, p_src.dictionary);
+			return MCBrowserValueSetDictionary(r_dst, p_src->dictionary);
 		
 		default:
 			// unknown type
@@ -78,117 +93,150 @@ bool MCBrowserValueCopy(const MCBrowserValue &p_src, MCBrowserValue &r_dst)
 	return false;
 }
 
-bool MCBrowserValueSetBoolean(MCBrowserValue &self, bool p_value)
+bool MCBrowserValueSetBoolean(MCBrowserValueRef self, bool p_value)
 {
-	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeBoolean;
-	self.boolean = p_value;
-	
-	return true;
-}
-
-bool MCBrowserValueGetBoolean(MCBrowserValue &self, bool &r_value)
-{
-	if (self.type != kMCBrowserValueTypeBoolean)
+	if (self == nil)
 		return false;
 	
-	r_value = self.boolean;
-	return true;
-}
-
-bool MCBrowserValueSetInteger(MCBrowserValue &self, int32_t p_value)
-{
 	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeInteger;
-	self.integer = p_value;
+	self->type = kMCBrowserValueTypeBoolean;
+	self->boolean = p_value;
 	
 	return true;
 }
 
-bool MCBrowserValueGetInteger(MCBrowserValue &self, int32_t &r_value)
+bool MCBrowserValueGetBoolean(MCBrowserValueRef self, bool &r_value)
 {
-	if (self.type != kMCBrowserValueTypeInteger)
+	if (self == nil)
 		return false;
 	
-	r_value = self.integer;
-	return true;
-}
-
-bool MCBrowserValueSetDouble(MCBrowserValue &self, double p_value)
-{
-	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeDouble;
-	self.double_val = p_value;
-	
-	return true;
-}
-
-bool MCBrowserValueGetDouble(MCBrowserValue &self, double &r_value)
-{
-	if (self.type != kMCBrowserValueTypeDouble)
+	if (self->type != kMCBrowserValueTypeBoolean)
 		return false;
 	
-	r_value = self.double_val;
+	r_value = self->boolean;
 	return true;
 }
 
-bool MCBrowserValueSetString(MCBrowserValue &self, MCBrowserStringRef p_value)
+bool MCBrowserValueSetInteger(MCBrowserValueRef self, int32_t p_value)
+{
+	if (self == nil)
+		return false;
+	
+	MCBrowserValueClear(self);
+	self->type = kMCBrowserValueTypeInteger;
+	self->integer = p_value;
+	
+	return true;
+}
+
+bool MCBrowserValueGetInteger(MCBrowserValueRef self, int32_t &r_value)
+{
+	if (self == nil)
+		return false;
+	
+	if (self->type != kMCBrowserValueTypeInteger)
+		return false;
+	
+	r_value = self->integer;
+	return true;
+}
+
+bool MCBrowserValueSetDouble(MCBrowserValueRef self, double p_value)
+{
+	if (self == nil)
+		return false;
+	
+	MCBrowserValueClear(self);
+	self->type = kMCBrowserValueTypeDouble;
+	self->double_val = p_value;
+	
+	return true;
+}
+
+bool MCBrowserValueGetDouble(MCBrowserValueRef self, double &r_value)
+{
+	if (self == nil)
+		return false;
+	
+	if (self->type != kMCBrowserValueTypeDouble)
+		return false;
+	
+	r_value = self->double_val;
+	return true;
+}
+
+bool MCBrowserValueSetString(MCBrowserValueRef self, MCBrowserStringRef p_value)
 {
 	MCBrowserStringRef t_string;
 	t_string = MCBrowserStringRetain(p_value);
 	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeString;
-	self.string = t_string;
+	self->type = kMCBrowserValueTypeString;
+	self->string = t_string;
 	
 	return true;
 }
 
-bool MCBrowserValueGetString(MCBrowserValue &self, MCBrowserStringRef &r_value)
+bool MCBrowserValueGetString(MCBrowserValueRef self, MCBrowserStringRef &r_value)
 {
-	if (self.type != kMCBrowserValueTypeString)
+	if (self == nil)
 		return false;
 	
-	r_value = self.string;
+	if (self->type != kMCBrowserValueTypeString)
+		return false;
+	
+	r_value = self->string;
 	return true;
 }
 
-bool MCBrowserValueSetList(MCBrowserValue &self, MCBrowserListRef p_value)
+bool MCBrowserValueSetList(MCBrowserValueRef self, MCBrowserListRef p_value)
 {
+	if (self == nil)
+		return false;
+	
 	MCBrowserListRef t_array;
 	t_array = MCBrowserListRetain(p_value);
 	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeList;
-	self.array = t_array;
+	self->type = kMCBrowserValueTypeList;
+	self->array = t_array;
 
 	return true;
 }
 
-bool MCBrowserValueGetList(MCBrowserValue &self, MCBrowserListRef &r_value)
+bool MCBrowserValueGetList(MCBrowserValueRef self, MCBrowserListRef &r_value)
 {
-	if (self.type != kMCBrowserValueTypeList)
+	if (self == nil)
 		return false;
 	
-	r_value = self.array;
+	if (self->type != kMCBrowserValueTypeList)
+		return false;
+	
+	r_value = self->array;
 	return true;
 }
 
-bool MCBrowserValueSetDictionary(MCBrowserValue &self, MCBrowserDictionaryRef p_value)
+bool MCBrowserValueSetDictionary(MCBrowserValueRef self, MCBrowserDictionaryRef p_value)
 {
+	if (self == nil)
+		return false;
+	
 	MCBrowserDictionaryRef t_dict;
 	t_dict = MCBrowserDictionaryRetain(p_value);
 	MCBrowserValueClear(self);
-	self.type = kMCBrowserValueTypeDictionary;
-	self.dictionary = t_dict;
+	self->type = kMCBrowserValueTypeDictionary;
+	self->dictionary = t_dict;
 	
 	return true;
 }
 
-bool MCBrowserValueGetDictionary(MCBrowserValue &self, MCBrowserDictionaryRef &r_value)
+bool MCBrowserValueGetDictionary(MCBrowserValueRef self, MCBrowserDictionaryRef &r_value)
 {
-	if (self.type != kMCBrowserValueTypeDictionary)
+	if (self == nil)
 		return false;
 	
-	r_value = self.dictionary;
+	if (self->type != kMCBrowserValueTypeDictionary)
+		return false;
+	
+	r_value = self->dictionary;
 	return true;
 }
 
@@ -365,7 +413,7 @@ public:
 	virtual ~MCBrowserList()
 	{
 		for (uint32_t i = 0; i < m_size; i++)
-			MCBrowserValueClear(m_elements[i]);
+			MCBrowserValueClear(&m_elements[i]);
 		MCBrowserMemoryDeleteArray(m_elements);
 	}
 	
@@ -391,20 +439,21 @@ public:
 		return true;
 	}
 	
-	bool SetValue(uint32_t p_index, const MCBrowserValue &p_value)
+	bool SetValue(uint32_t p_index, const MCBrowserValueRef p_value)
 	{
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueCopy(p_value, m_elements[p_index]);
+		return MCBrowserValueCopy(p_value, &m_elements[p_index]);
 	}
 	
-	bool GetValue(uint32_t p_index, MCBrowserValue &r_value)
+	bool GetValue(uint32_t p_index, MCBrowserValueRef &r_value)
 	{
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueCopy(m_elements[p_index], r_value);
+		r_value = &m_elements[p_index];
+		return true;
 	}
 	
 	bool SetBoolean(uint32_t p_index, bool p_value)
@@ -412,7 +461,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetBoolean(m_elements[p_index], p_value);
+		return MCBrowserValueSetBoolean(&m_elements[p_index], p_value);
 	}
 	
 	bool GetBoolean(uint32_t p_index, bool &r_value)
@@ -420,7 +469,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetBoolean(m_elements[p_index], r_value);
+		return MCBrowserValueGetBoolean(&m_elements[p_index], r_value);
 	}
 	
 	bool SetInteger(uint32_t p_index, int32_t p_value)
@@ -428,7 +477,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetInteger(m_elements[p_index], p_value);
+		return MCBrowserValueSetInteger(&m_elements[p_index], p_value);
 	}
 	
 	bool GetInteger(uint32_t p_index, int32_t &r_value)
@@ -436,7 +485,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetInteger(m_elements[p_index], r_value);
+		return MCBrowserValueGetInteger(&m_elements[p_index], r_value);
 	}
 	
 	bool SetDouble(uint32_t p_index, double p_value)
@@ -444,7 +493,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetDouble(m_elements[p_index], p_value);
+		return MCBrowserValueSetDouble(&m_elements[p_index], p_value);
 	}
 
 	bool GetDouble(uint32_t p_index, double &r_value)
@@ -452,7 +501,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetDouble(m_elements[p_index], r_value);
+		return MCBrowserValueGetDouble(&m_elements[p_index], r_value);
 	}
 	
 	bool SetString(uint32_t p_index, MCBrowserStringRef p_value)
@@ -460,7 +509,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetString(m_elements[p_index], p_value);
+		return MCBrowserValueSetString(&m_elements[p_index], p_value);
 	}
 	
 	bool GetString(uint32_t p_index, MCBrowserStringRef &r_value)
@@ -468,7 +517,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetString(m_elements[p_index], r_value);
+		return MCBrowserValueGetString(&m_elements[p_index], r_value);
 	}
 	
 	bool SetList(uint32_t p_index, MCBrowserListRef p_value)
@@ -476,7 +525,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetList(m_elements[p_index], p_value);
+		return MCBrowserValueSetList(&m_elements[p_index], p_value);
 	}
 	
 	bool GetList(uint32_t p_index, MCBrowserListRef &r_value)
@@ -484,7 +533,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetList(m_elements[p_index], r_value);
+		return MCBrowserValueGetList(&m_elements[p_index], r_value);
 	}
 	
 	bool SetDictionary(uint32_t p_index, MCBrowserDictionaryRef p_value)
@@ -492,7 +541,7 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueSetDictionary(m_elements[p_index], p_value);
+		return MCBrowserValueSetDictionary(&m_elements[p_index], p_value);
 	}
 	
 	bool GetDictionary(uint32_t p_index, MCBrowserDictionaryRef &r_value)
@@ -500,10 +549,10 @@ public:
 		if (p_index >= m_size)
 			return false;
 		
-		return MCBrowserValueGetDictionary(m_elements[p_index], r_value);
+		return MCBrowserValueGetDictionary(&m_elements[p_index], r_value);
 	}
 	
-	bool AppendValue(const MCBrowserValue &p_value)
+	bool AppendValue(const MCBrowserValueRef p_value)
 	{
 		uint32_t t_index;
 		t_index = m_size;
@@ -560,7 +609,7 @@ public:
 	}
 
 private:
-	MCBrowserValue *m_elements;
+	__MCBrowserValue *m_elements;
 	uint32_t m_size;
 };
 
@@ -614,7 +663,7 @@ bool MCBrowserListGetType(MCBrowserListRef p_list, uint32_t p_index, MCBrowserVa
 	return ((MCBrowserList*)p_list)->GetType(p_index, r_type);
 }
 
-bool MCBrowserListSetValue(MCBrowserListRef p_list, uint32_t p_index, const MCBrowserValue &p_value)
+bool MCBrowserListSetValue(MCBrowserListRef p_list, uint32_t p_index, const MCBrowserValueRef p_value)
 {
 	if (p_list == nil)
 		return false;
@@ -670,7 +719,7 @@ bool MCBrowserListSetDictionary(MCBrowserListRef p_list, uint32_t p_index, MCBro
 	return ((MCBrowserList*)p_list)->SetDictionary(p_index, p_value);
 }
 
-bool MCBrowserListAppendValue(MCBrowserListRef p_list, const MCBrowserValue &p_value)
+bool MCBrowserListAppendValue(MCBrowserListRef p_list, const MCBrowserValueRef p_value)
 {
 	if (p_list == nil)
 		return false;
@@ -726,7 +775,7 @@ bool MCBrowserListAppendDictionary(MCBrowserListRef p_list, MCBrowserDictionaryR
 	return ((MCBrowserList*)p_list)->AppendDictionary(p_value);
 }
 
-bool MCBrowserListGetValue(MCBrowserListRef p_list, uint32_t p_index, MCBrowserValue &r_value)
+bool MCBrowserListGetValue(MCBrowserListRef p_list, uint32_t p_index, MCBrowserValueRef &r_value)
 {
 	if (p_list == nil)
 		return false;
@@ -798,7 +847,7 @@ public:
 	virtual ~MCBrowserDictionary()
 	{
 		for (uint32_t i = 0; i < m_size; i++)
-			MCBrowserValueClear(m_elements[i]);
+			MCBrowserValueClear(&m_elements[i]);
 		for (uint32_t i = 0; i < m_size; i++)
 			MCBrowserStringRelease(m_keys[i]);
 		
@@ -869,22 +918,23 @@ public:
 		return true;
 	}
 	
-	bool SetValue(MCBrowserStringRef p_key, const MCBrowserValue &p_value)
+	bool SetValue(MCBrowserStringRef p_key, const MCBrowserValueRef p_value)
 	{
 		uint32_t t_index;
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueCopy(p_value, m_elements[t_index]);
+		return MCBrowserValueCopy(p_value, &m_elements[t_index]);
 	}
 	
-	bool GetValue(MCBrowserStringRef p_key, MCBrowserValue &r_value)
+	bool GetValue(MCBrowserStringRef p_key, MCBrowserValueRef &r_value)
 	{
 		uint32_t t_index;
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueCopy(m_elements[t_index], r_value);
+		r_value = &m_elements[t_index];
+		return true;
 	}
 	
 	bool SetBoolean(MCBrowserStringRef p_key, bool p_value)
@@ -893,7 +943,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetBoolean(m_elements[t_index], p_value);
+		return MCBrowserValueSetBoolean(&m_elements[t_index], p_value);
 	}
 	
 	bool GetBoolean(MCBrowserStringRef p_key, bool &r_value)
@@ -902,7 +952,7 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetBoolean(m_elements[t_index], r_value);
+		return MCBrowserValueGetBoolean(&m_elements[t_index], r_value);
 	}
 	
 	bool SetInteger(MCBrowserStringRef p_key, int32_t p_value)
@@ -911,7 +961,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetInteger(m_elements[t_index], p_value);
+		return MCBrowserValueSetInteger(&m_elements[t_index], p_value);
 	}
 	
 	bool GetInteger(MCBrowserStringRef p_key, int32_t &r_value)
@@ -920,7 +970,7 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetInteger(m_elements[t_index], r_value);
+		return MCBrowserValueGetInteger(&m_elements[t_index], r_value);
 	}
 	
 	bool SetDouble(MCBrowserStringRef p_key, double p_value)
@@ -929,7 +979,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetDouble(m_elements[t_index], p_value);
+		return MCBrowserValueSetDouble(&m_elements[t_index], p_value);
 	}
 
 	bool GetDouble(MCBrowserStringRef p_key, double &r_value)
@@ -938,7 +988,7 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetDouble(m_elements[t_index], r_value);
+		return MCBrowserValueGetDouble(&m_elements[t_index], r_value);
 	}
 	
 	bool SetString(MCBrowserStringRef p_key, MCBrowserStringRef p_value)
@@ -947,7 +997,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetString(m_elements[t_index], p_value);
+		return MCBrowserValueSetString(&m_elements[t_index], p_value);
 	}
 	
 	bool GetString(MCBrowserStringRef p_key, MCBrowserStringRef &r_value)
@@ -956,7 +1006,7 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetString(m_elements[t_index], r_value);
+		return MCBrowserValueGetString(&m_elements[t_index], r_value);
 	}
 	
 	bool SetList(MCBrowserStringRef p_key, MCBrowserListRef p_value)
@@ -965,7 +1015,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetList(m_elements[t_index], p_value);
+		return MCBrowserValueSetList(&m_elements[t_index], p_value);
 	}
 	
 	bool GetList(MCBrowserStringRef p_key, MCBrowserListRef &r_value)
@@ -974,7 +1024,7 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetList(m_elements[t_index], r_value);
+		return MCBrowserValueGetList(&m_elements[t_index], r_value);
 	}
 	
 	bool SetDictionary(MCBrowserStringRef p_key, MCBrowserDictionaryRef p_value)
@@ -983,7 +1033,7 @@ public:
 		if (!EnsureElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueSetDictionary(m_elements[t_index], p_value);
+		return MCBrowserValueSetDictionary(&m_elements[t_index], p_value);
 	}
 	
 	bool GetDictionary(MCBrowserStringRef p_key, MCBrowserDictionaryRef &r_value)
@@ -992,11 +1042,11 @@ public:
 		if (!FindElement(p_key, t_index))
 			return false;
 		
-		return MCBrowserValueGetDictionary(m_elements[t_index], r_value);
+		return MCBrowserValueGetDictionary(&m_elements[t_index], r_value);
 	}
 	
 private:
-	MCBrowserValue *m_elements;
+	__MCBrowserValue *m_elements;
 	MCBrowserStringRef *m_keys;
 	uint32_t m_capacity;
 	uint32_t m_size;
@@ -1074,7 +1124,7 @@ bool MCBrowserDictionaryGetType(MCBrowserDictionaryRef p_dictionary, MCBrowserSt
 	return ((MCBrowserDictionary*)p_dictionary)->GetType(p_key, r_type);
 }
 
-bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dictionary, MCBrowserStringRef p_key, const MCBrowserValue &p_value)
+bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dictionary, MCBrowserStringRef p_key, const MCBrowserValueRef p_value)
 {
 	if (p_dictionary == nil)
 		return false;
@@ -1082,7 +1132,7 @@ bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dictionary, MCBrowserS
 	return ((MCBrowserDictionary*)p_dictionary)->SetValue(p_key, p_value);
 }
 
-bool MCBrowserDictionaryGetValue(MCBrowserDictionaryRef p_dictionary, MCBrowserStringRef p_key, MCBrowserValue &r_value)
+bool MCBrowserDictionaryGetValue(MCBrowserDictionaryRef p_dictionary, MCBrowserStringRef p_key, MCBrowserValueRef &r_value)
 {
 	if (p_dictionary == nil)
 		return false;

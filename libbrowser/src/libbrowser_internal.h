@@ -92,6 +92,12 @@ bool MCBrowserMemoryReallocate(void *p_mem, size_t p_new_size, void *& r_new_mem
 void MCBrowserMemoryDeallocate(void *p_mem);
 void MCBrowserMemoryClear(void *p_mem, size_t p_size);
 
+template <class T>
+inline void MCBrowserMemoryClear(T &p_obj)
+{
+	MCBrowserMemoryClear(&p_obj, sizeof(T));
+}
+
 inline bool MCBrowserMemoryAllocateClear(size_t p_size, void *&r_mem)
 {
 	void *t_mem;
@@ -147,7 +153,7 @@ inline void MCBrowserMemoryDeleteArray(T*p_array)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct MCBrowserValue
+struct __MCBrowserValue
 {
 	MCBrowserValueType type;
 	union
@@ -160,29 +166,6 @@ struct MCBrowserValue
 		MCBrowserDictionaryRef dictionary;
 	};
 };
-
-void MCBrowserValueClear(MCBrowserValue &p_value);
-bool MCBrowserValueCopy(const MCBrowserValue &p_src, MCBrowserValue &r_dst);
-
-bool MCBrowserValueSetBoolean(MCBrowserValue &self, bool p_value);
-bool MCBrowserValueGetBoolean(MCBrowserValue &self, bool &r_value);
-bool MCBrowserValueSetInteger(MCBrowserValue &self, int32_t p_value);
-bool MCBrowserValueGetInteger(MCBrowserValue &self, int32_t &r_value);
-bool MCBrowserValueSetDouble(MCBrowserValue &self, double p_value);
-bool MCBrowserValueGetDouble(MCBrowserValue &self, double &r_value);
-bool MCBrowserValueSetString(MCBrowserValue &self, MCBrowserStringRef p_value);
-bool MCBrowserValueGetString(MCBrowserValue &self, MCBrowserStringRef &r_value);
-bool MCBrowserValueSetList(MCBrowserValue &self, MCBrowserListRef p_value);
-bool MCBrowserValueGetList(MCBrowserValue &self, MCBrowserListRef &r_value);
-bool MCBrowserValueSetDictionary(MCBrowserValue &self, MCBrowserDictionaryRef p_value);
-bool MCBrowserValueGetDictionary(MCBrowserValue &self, MCBrowserDictionaryRef &r_value);
-
-bool MCBrowserListSetValue(MCBrowserListRef p_list, uint32_t p_index, const MCBrowserValue &p_value);
-bool MCBrowserListGetValue(MCBrowserListRef p_list, uint32_t p_index, MCBrowserValue &r_value);
-bool MCBrowserListAppendValue(MCBrowserListRef p_list, const MCBrowserValue &p_value);
-
-bool MCBrowserDictionarySetValue(MCBrowserDictionaryRef p_dict, MCBrowserStringRef p_key, const MCBrowserValue &p_value);
-bool MCBrowserDictionaryGetValue(MCBrowserDictionaryRef p_dict, MCBrowserStringRef p_key, MCBrowserValue &r_value);
 
 ////////////////////////////////////////////////////////////////////////////////
 

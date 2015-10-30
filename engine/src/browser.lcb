@@ -44,6 +44,7 @@ metadata version is "1.0.0"
 public type MCBrowserFactoryRef is Pointer
 public type MCBrowserRef is Pointer
 
+public type MCBrowserValueRef is Pointer
 public type MCBrowserStringRef is Pointer
 public type MCBrowserListRef is Pointer
 public type MCBrowserDictionaryRef is Pointer
@@ -84,11 +85,24 @@ public foreign handler MCBrowserEvaluateJavaScript(in pBrowser as MCBrowserRef, 
 
 ----------
 
-public foreign handler MCBrowserStringCreateWithUTF8String(in pUTF8String as ZStringUTF8, out rString as MCBrowserStringRef) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetType(in pValue as MCBrowserValueRef, out rType as MCBrowserValueType) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetBoolean(in pValue as MCBrowserValueRef, out rValue as CBool) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetInteger(in pValue as MCBrowserValueRef, out rValue as Int32) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetDouble(in pValue as MCBrowserValueRef, out rValue as CDouble) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetString(in pValue as MCBrowserValueRef, out rValue as MCBrowserStringRef) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetList(in pValue as MCBrowserValueRef, out rValue as MCBrowserListRef) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserValueGetDictionary(in pValue as MCBrowserValueRef, out rValue as MCBrowserDictionaryRef) returns CBool binds to "<builtin>"
+
+--
+
 public foreign handler MCBrowserStringGetUTF8String(in pString as MCBrowserStringRef, out rUTF8String as ZStringUTF8) returns CBool binds to "<builtin>"
 
+--
+
 public foreign handler MCBrowserListGetSize(in pList as MCBrowserListRef, out rSize as UInt32) returns CBool binds to "<builtin>"
+
 public foreign handler MCBrowserListGetType(in pList as MCBrowserListRef, in pIndex as UInt32, out rType as MCBrowserValueType) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserListGetValue(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as MCBrowserValueRef) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserListGetBoolean(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as CBool) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserListGetInteger(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as Int32) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserListGetDouble(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as CDouble) returns CBool binds to "<builtin>"
@@ -96,19 +110,24 @@ public foreign handler MCBrowserListGetString(in pList as MCBrowserListRef, in p
 public foreign handler MCBrowserListGetList(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as MCBrowserListRef) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserListGetDictionary(in pList as MCBrowserListRef, in pIndex as UInt32, out rValue as MCBrowserDictionaryRef) returns CBool binds to "<builtin>"
 
-public foreign handler MCBrowserDictionaryGetKeys(in pDictionary as MCBrowserDictionaryRef, out rKeys as Pointer, out rCount as UInt32) returns CBool binds to "<builtin>"
+--
+
+--public foreign handler MCBrowserDictionaryGetKeys(in pDictionary as MCBrowserDictionaryRef, out rKeys as Pointer, out rCount as UInt32) returns CBool binds to "<builtin>"
 
 /* WORKAROUND - Can't currently dereference a Pointer-to-CString at the moment so need to provide key accessor functions */
 public foreign handler MCBrowserDictionaryGetKeyCount(in pDictionary as MCBrowserDictionaryRef, out rCount as UInt32) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetKey(in pDictionary as MCBrowserDictionaryRef, in pIndex as UInt32, out rKey as MCBrowserStringRef) returns CBool binds to "<builtin>"
 
 public foreign handler MCBrowserDictionaryGetType(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rType as MCBrowserValueType) returns CBool binds to "<builtin>"
+public foreign handler MCBrowserDictionaryGetValue(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as MCBrowserValueRef) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetBoolean(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as CBool) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetInteger(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as Int32) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetDouble(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as CDouble) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetString(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as MCBrowserStringRef) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetList(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as MCBrowserListRef) returns CBool binds to "<builtin>"
 public foreign handler MCBrowserDictionaryGetDictionary(in pDictionary as MCBrowserDictionaryRef, in pKey as MCBrowserStringRef, out rValue as MCBrowserDictionaryRef) returns CBool binds to "<builtin>"
+
+----------
 
 public foreign handler type MCBrowserRequestCallback(in pContext as optional Pointer, in pBrowser as MCBrowserRef, in pType as MCBrowserRequestType, in pState as MCBrowserRequestState, in pFrame as CBool, in pUrl as ZStringUTF8, in pError as optional ZStringUTF8) returns nothing
 public foreign handler type MCBrowserJavaScriptCallback(in pContext as optional Pointer, in pBrowser as MCBrowserRef, in pHandler as ZStringUTF8, in pParams as MCBrowserListRef) returns nothing
@@ -165,6 +184,78 @@ constant kBoolProps is [0, 1, 2]
 
 --------------------------------------------------------------------------------
 
+public handler browserValueToLCBValue(in pBrowserValue as MCBrowserValueRef, out rValue as any) returns Boolean
+	variable tType as MCBrowserValueType
+	if not MCBrowserValueGetType(pBrowserValue, tType) then
+		log "couldn't get type of %@" with [pBrowserValue]
+		return false
+	end if
+	
+	if tType is kMCBrowserValueTypeBoolean then
+		variable tBoolean as CBool
+		if not MCBrowserValueGetBoolean(pBrowserValue, tBoolean) then
+			log "couldn't get boolean %@" with [pBrowserValue]
+			return false
+		end if
+		put tBoolean into rValue
+	else if tType is kMCBrowserValueTypeInteger then
+		variable tInteger as CInt
+		if not MCBrowserValueGetInteger(pBrowserValue, tInteger) then
+			log "couldn't get integer %@" with [pBrowserValue]
+			return false
+		end if
+		put tInteger into rValue
+	else if tType is kMCBrowserValueTypeDouble then
+		variable tDouble as CDouble
+		if not MCBrowserValueGetDouble(pBrowserValue, tDouble) then
+			log "couldn't get double %@" with [pBrowserValue]
+			return false
+		end if
+		put tDouble into rValue
+	else if tType is kMCBrowserValueTypeString then
+		variable tString as MCBrowserStringRef
+		if not MCBrowserValueGetString(pBrowserValue, tString) then
+			log "couldn't get string %@" with [pBrowserValue]
+			return false
+		end if
+		variable tUTF8String as ZStringNative
+		if not MCBrowserStringGetUTF8String(tString, tUTF8String) then
+			log "couldn't get string %@" with [pBrowserValue]
+			return false
+		end if
+		put tUTF8String into rValue
+	else if tType is kMCBrowserValueTypeList then
+		variable tBrowserList as MCBrowserListRef
+		if not MCBrowserValueGetList(pBrowserValue, tBrowserList) then
+			log "couldn't get list %@" with [pBrowserValue]
+			return false
+		end if
+		variable tConvertedList as List
+		if not browserListToLCBList(tBrowserList, tConvertedList) then
+			log "couldn't convert list %@" with [pBrowserValue]
+			return false
+		end if
+		put tConvertedList into rValue
+	else if tType is kMCBrowserValueTypeDictionary then
+		variable tBrowserDict as MCBrowserDictionaryRef
+		if not MCBrowserValueGetDictionary(pBrowserValue, tBrowserDict) then
+			log "couldn't get dictionary %@" with [pBrowserValue]
+			return false
+		end if
+		variable tConvertedDict as Array
+		if not browserDictionaryToLCBArray(tBrowserDict, tConvertedDict) then 
+			log "couldn't convert dictionary %@" with [pBrowserValue]
+			return false
+		end if
+		put tConvertedDict into rValue
+	else
+		log "unrecognised type %@" with [tType]
+		return false
+	end if
+	
+	return true
+end handler
+
 public handler browserListToLCBList(in pBrowserList as MCBrowserListRef, out rList as List) returns Boolean
 	variable tList as List
 	put the empty list into tList
@@ -177,73 +268,19 @@ public handler browserListToLCBList(in pBrowserList as MCBrowserListRef, out rLi
 	
 	variable i
 	repeat with i from 0 up to tCount - 1
-		variable tType as MCBrowserValueType
-		if not MCBrowserListGetType(pBrowserList, i, tType) then
-			log "couldn't get type of %@" with [i]
+		variable tBrowserValue as MCBrowserValueRef
+		if not MCBrowserListGetValue(pBrowserList, i, tBrowserValue) then
+			log "couldn't get value %@" with [i]
 			return false
 		end if
 		
-		if tType is kMCBrowserValueTypeBoolean then
-			variable tBoolean as CBool
-			if not MCBrowserListGetBoolean(pBrowserList, i, tBoolean) then
-				log "couldn't get boolean %@" with [i]
-				return false
-			end if
-			push tBoolean onto tList
-		else if tType is kMCBrowserValueTypeInteger then
-			variable tInteger as CInt
-			if not MCBrowserListGetInteger(pBrowserList, i, tInteger) then
-				log "couldn't get integer %@" with [i]
-				return false
-			end if
-			push tInteger onto tList
-		else if tType is kMCBrowserValueTypeDouble then
-			variable tDouble as CDouble
-			if not MCBrowserListGetDouble(pBrowserList, i, tDouble) then
-				log "couldn't get double %@" with [i]
-				return false
-			end if
-			push tDouble onto tList
-		else if tType is kMCBrowserValueTypeString then
-			variable tString as MCBrowserStringRef
-			if not MCBrowserListGetString(pBrowserList, i, tString) then
-				log "couldn't get string %@" with [i]
-				return false
-			end if
-			variable tUTF8String as ZStringNative
-			if not MCBrowserStringGetUTF8String(tString, tUTF8String) then
-				log "couldn't get string %@" with [i]
-				return false
-			end if
-			push tUTF8String onto tList
-		else if tType is kMCBrowserValueTypeList then
-			variable tBrowserList as MCBrowserListRef
-			if not MCBrowserListGetList(pBrowserList, i, tBrowserList) then
-				log "couldn't get list %@" with [i]
-				return false
-			end if
-			variable tConvertedList as List
-			if not browserListToLCBList(tBrowserList, tConvertedList) then
-				log "couldn't convert list %@" with [i]
-				return false
-			end if
-			push tConvertedList onto tList
-		else if tType is kMCBrowserValueTypeDictionary then
-			variable tBrowserDict as MCBrowserDictionaryRef
-			if not MCBrowserListGetDictionary(pBrowserList, i, tBrowserDict) then
-				log "couldn't get dictionary %@" with [i]
-				return false
-			end if
-			variable tConvertedDict as Array
-			if not browserDictionaryToLCBArray(tBrowserDict, tConvertedDict) then 
-				log "couldn't convert dictionary %@" with [i]
-				return false
-			end if
-			push tConvertedDict onto tList
-		else
-			log "unrecognised type %@" with [tType]
+		variable tValue as any
+		if not browserValueToLCBValue(tBrowserValue, tValue) then
+			log "couldn't convert browser value %@ to LCB value" with [i]
 			return false
 		end if
+		
+		push tValue onto tList
 	end repeat
 	
 	put tList into rList
@@ -270,77 +307,23 @@ public handler browserDictionaryToLCBArray(in pBrowserDict as MCBrowserDictionar
 		end if
 		variable tKeyString as String
 		if not MCBrowserStringGetUTF8String(tKey, tKeyString) then
-			log "couldn't get key of %@" with [i]
+			log "couldn't convert key of %@" with [i]
+			return false
+		end if
+
+		variable tBrowserValue as MCBrowserValueRef
+		if not MCBrowserDictionaryGetValue(pBrowserDict, tKey, tBrowserValue) then
+			log "couldn't get value %@" with [i]
 			return false
 		end if
 		
-		variable tType as MCBrowserValueType
-		if not MCBrowserDictionaryGetType(pBrowserDict, tKey, tType) then
-			log "couldn't get type of %@" with [i]
+		variable tValue as any
+		if not browserValueToLCBValue(tBrowserValue, tValue) then
+			log "couldn't convert browser value %@ to LCB value" with [i]
 			return false
 		end if
 		
-		if tType is kMCBrowserValueTypeBoolean then
-			variable tBoolean as CBool
-			if not MCBrowserDictionaryGetBoolean(pBrowserDict, tKey, tBoolean) then
-				log "couldn't get boolean %@" with [i]
-				return false
-			end if
-			put tBoolean into tArray[tKeyString]
-		else if tType is kMCBrowserValueTypeInteger then
-			variable tInteger as CInt
-			if not MCBrowserDictionaryGetInteger(pBrowserDict, tKey, tInteger) then
-				log "couldn't get integer %@" with [i]
-				return false
-			end if
-			put tInteger into tArray[tKeyString]
-		else if tType is kMCBrowserValueTypeDouble then
-			variable tDouble as CDouble
-			if not MCBrowserDictionaryGetDouble(pBrowserDict, tKey, tDouble) then
-				log "couldn't get double %@" with [i]
-				return false
-			end if
-			put tDouble into tArray[tKeyString]
-		else if tType is kMCBrowserValueTypeString then
-			variable tString as MCBrowserStringRef
-			if not MCBrowserDictionaryGetString(pBrowserDict, tKey, tString) then
-				log "could't get string %@" with [i]
-				return false
-			end if
-			variable tUTF8String as ZStringNative
-			if not MCBrowserStringGetUTF8String(tString, tUTF8String) then
-				log "couldn't get string %@" with [i]
-				return false
-			end if
-			put tUTF8String into tArray[tKeyString]
-		else if tType is kMCBrowserValueTypeList then
-			variable tBrowserList as MCBrowserListRef
-			if not MCBrowserDictionaryGetList(pBrowserDict, tKey, tBrowserList) then
-				log "couldn't get list %@" with [i]
-				return false
-			end if
-			variable tConvertedList as List
-			if not browserListToLCBList(tBrowserList, tConvertedList) then
-				log "couldn't convert list %@" with [i]
-				return false
-			end if
-			put tConvertedList into tArray[tKeyString]
-		else if tType is kMCBrowserValueTypeDictionary then
-			variable tBrowserDict as MCBrowserDictionaryRef
-			if not MCBrowserDictionaryGetDictionary(pBrowserDict, tKey, tBrowserDict) then
-				log "couldn't get dictionary %@" with [i]
-				return false
-			end if
-			variable tConvertedDict as Array
-			if not browserDictionaryToLCBArray(tBrowserDict, tConvertedDict) then 
-				log "couldn't convert dictionary %@" with [i]
-				return false
-			end if
-			put tConvertedDict into tArray[tKeyString]
-		else
-			log "unrecognised type %@" with [tType]
-			return false
-		end if
+		put tValue into tArray[tKeyString]
 	end repeat
 	
 	put tArray into rArray

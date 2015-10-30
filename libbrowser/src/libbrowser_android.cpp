@@ -198,7 +198,7 @@ public:
 		return MCBrowserJavaStringToBrowserString(m_env, p_string, r_string);
 	}
 	
-	bool GetBrowserValue(jobject p_obj, MCBrowserValue &r_value)
+	bool GetBrowserValue(jobject p_obj, MCBrowserValueRef p_value)
 	{
 		bool t_success;
 		t_success = true;
@@ -209,7 +209,7 @@ public:
 			t_success = GetBooleanValue(p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetBoolean(r_value, t_val);
+				t_success = MCBrowserValueSetBoolean(p_value, t_val);
 		}
 		else if (IsInteger(p_obj))
 		{
@@ -217,7 +217,7 @@ public:
 			t_success = GetIntegerValue(p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetInteger(r_value, t_val);
+				t_success = MCBrowserValueSetInteger(p_value, t_val);
 		}
 		else if (IsDouble(p_obj))
 		{
@@ -225,7 +225,7 @@ public:
 			t_success = GetDoubleValue(p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetDouble(r_value, t_val);
+				t_success = MCBrowserValueSetDouble(p_value, t_val);
 		}
 		else if (IsString(p_obj))
 		{
@@ -234,7 +234,7 @@ public:
 			t_success = GetStringValue((jstring)p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetString(r_value, t_val);
+				t_success = MCBrowserValueSetString(p_value, t_val);
 			
 			if (t_val != nil)
 				MCBrowserStringRelease(t_val);
@@ -246,7 +246,7 @@ public:
 			t_success = GetJSONArrayValue(p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetList(r_value, t_val);
+				t_success = MCBrowserValueSetList(p_value, t_val);
 			
 			if (t_val != nil)
 				MCBrowserListRelease(t_val);
@@ -258,7 +258,7 @@ public:
 			t_success = GetJSONObjectValue(p_obj, t_val);
 			
 			if (t_success)
-				t_success = MCBrowserValueSetDictionary(r_value, t_val);
+				t_success = MCBrowserValueSetDictionary(p_value, t_val);
 			
 			if (t_val != nil)
 				MCBrowserDictionaryRelease(t_val);
@@ -266,7 +266,7 @@ public:
 		else
 		{
 			MCLog("Convert: unhandled object class: %p", p_obj);
-			MCBrowserValueClear(r_value);
+			MCBrowserValueClear(p_value);
 		}
 		
 		return t_success;
@@ -310,8 +310,8 @@ public:
 		
 		for (uint32_t i = 0; t_success && i < t_size; i++)
 		{
-			MCBrowserValue t_value;
-			MCBrowserMemoryClear(&t_value, sizeof(MCBrowserValue));
+			__MCBrowserValue t_value;
+			MCBrowserMemoryClear(t_value);
 			
 			jobject t_obj;
 			t_obj = nil;
@@ -319,15 +319,15 @@ public:
 			t_success = GetJSONArrayElement(p_array, i, t_obj);
 			
 			if (t_success)
-				t_success = GetBrowserValue(t_obj, t_value);
+				t_success = GetBrowserValue(t_obj, &t_value);
 			
 			if (t_success)
-				t_success = MCBrowserListSetValue(t_list, i, t_value);
+				t_success = MCBrowserListSetValue(t_list, i, &t_value);
 			
 			if (t_obj != nil)
 				m_env->DeleteLocalRef(t_obj);
 			
-			MCBrowserValueClear(t_value);
+			MCBrowserValueClear(&t_value);
 		}
 		
 		if (t_success)
@@ -381,8 +381,8 @@ public:
 		
 		for (uint32_t i = 0; t_success && i < t_size; i++)
 		{
-			MCBrowserValue t_value;
-			MCBrowserMemoryClear(&t_value, sizeof(MCBrowserValue));
+			__MCBrowserValue t_value;
+			MCBrowserMemoryClear(t_value);
 			
 			jstring t_key;
 			t_key = nil;
@@ -402,10 +402,10 @@ public:
 				t_success = GetJSONObjectElement(p_object, t_key, t_obj);
 			
 			if (t_success)
-				t_success = GetBrowserValue(t_obj, t_value);
+				t_success = GetBrowserValue(t_obj, &t_value);
 			
 			if (t_success)
-				t_success = MCBrowserDictionarySetValue(t_dict, t_key_string, t_value);
+				t_success = MCBrowserDictionarySetValue(t_dict, t_key_string, &t_value);
 			
 			if (t_key_string != nil)
 				MCBrowserStringRelease(t_key_string);
@@ -416,7 +416,7 @@ public:
 			if (t_obj != nil)
 				m_env->DeleteLocalRef(t_obj);
 			
-			MCBrowserValueClear(t_value);
+			MCBrowserValueClear(&t_value);
 		}
 		
 		if (t_names != nil)
