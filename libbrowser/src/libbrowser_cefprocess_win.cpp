@@ -24,10 +24,38 @@ extern bool MCCefCreateApp(CefRefPtr<CefApp> &r_app);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// IM-2014-08-08: [[ Bug 12372 ]] Weak-linked SetProcessDPIAware function
+typedef BOOL (WINAPI *SetProcessDPIAwarePtr)(VOID);
+bool MCWin32SetProcessDPIAware(BOOL &r_result)
+{
+	static SetProcessDPIAwarePtr s_SetProcessDPIAware = NULL;
+	static bool s_init = true;
+
+	if (s_init)
+	{
+		s_SetProcessDPIAware = (SetProcessDPIAwarePtr)GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDPIAware");
+		s_init = false;
+	}
+
+	if (s_SetProcessDPIAware == NULL)
+		return false;
+
+	r_result = s_SetProcessDPIAware();
+
+	return true;
+}
+
+//////////
+
 extern "C" int initialise_weak_link_cef(void);
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	// set dpi-aware
+	BOOL t_result;
+	MCWin32SetProcessDPIAware(t_result);
+	//CefEnableHighDPISupport();
+
 	// IM-2014-03-18: [[ revBrowserCEF ]] Initialise dynamically loaded cef library
 	if (!initialise_weak_link_cef())
 		return -1;
