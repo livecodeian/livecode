@@ -551,7 +551,14 @@ void X_clear_globals(void)
     MChidepalettes = False;
 #endif
 	MCdontuseNS = False;
+
+// IM-2016-05-20: [[ WindowsPlayer ]] Don't use QT by default on Windows
+#ifdef TARGET_PLATFORM_WINDOWS
+	MCdontuseQT = True;
+#else
 	MCdontuseQT = False;
+#endif
+
 	MCdontuseQTeffects = False;
 	MCeventtime = 0;
 	MCbuttonstate = 0;
