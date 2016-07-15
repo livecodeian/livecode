@@ -262,7 +262,26 @@ MCCardlist *MCrecent;
 MCCardlist *MCcstack;
 MCDispatch *MCdispatcher;
 MCStack *MCtopstackptr;
-MCStack *MCdefaultstackptr;
+
+MCStackPointer MCdefaultstackptr;
+MCStack* MCStackPointer::operator = (MCStack* value)
+{
+	if (value != nil)
+	{
+		MCAssert(value->getdeletedobjectpool() != nil);
+	}
+	m_ptr = value;
+	return m_ptr;
+}
+
+MCStack* MCStackPointer::operator -> (void)
+{
+	MCAssert(m_ptr != nil);
+	return m_ptr;
+}
+
+// MCStack *MCdefaultstackptr;
+
 MCStack *MCstaticdefaultstackptr;
 MCStack *MCmousestackptr;
 MCStack *MCclickstackptr;

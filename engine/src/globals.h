@@ -175,7 +175,23 @@ extern MCCardlist *MCrecent;
 extern MCCardlist *MCcstack;
 extern MCDispatch *MCdispatcher;
 extern MCStack *MCtopstackptr;
-extern MCStack *MCdefaultstackptr;
+
+class MCStackPointer
+{
+public:
+	MCStack* operator = (MCStack* value);
+	MCStack* operator -> (void);
+	operator MCStack* (void)
+	{
+		return m_ptr;
+	}
+
+private:
+	MCStack* m_ptr;
+};
+extern MCStackPointer MCdefaultstackptr;
+//extern MCStack *MCdefaultstackptr;
+
 extern MCStack *MCstaticdefaultstackptr;
 extern MCStack *MCmousestackptr;
 extern MCStack *MCclickstackptr;
