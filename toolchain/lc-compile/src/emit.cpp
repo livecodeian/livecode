@@ -373,7 +373,7 @@ static uindex_t s_emitted_builtin_count = 0;
 
 static MCStringRef EmittedBuiltinAdd(NameRef p_symbol_name, uindex_t p_type_index, bool p_force)
 {
-    if (!p_force && (!OutputFileAsC || OutputFileAsAuxC))
+    if (!p_force && !(OutputFileAsC || OutputFileAsAuxC))
     {
         return MCNameGetString(to_mcnameref(p_symbol_name));
     }
