@@ -19,6 +19,7 @@ readVersion OpenSSL
 readVersion ICU
 readVersion Curl
 readVersion CEF
+readVersion CEFChromium
 readVersion Thirdparty
 
 # extract hash from start of submodule status
