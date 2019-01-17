@@ -54,6 +54,7 @@ coll/fa.res
 coll/fa_AF.res
 coll/fi.res
 coll/fr.res
+coll/fr_CA.res
 coll/gu.res
 coll/he.res
 coll/he_IL.res
