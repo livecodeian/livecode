@@ -898,7 +898,6 @@ void MCCard::layer_removed(MCControl *p_control, MCControl *p_previous, MCContro
 				p_next->layer_setid(t_before_layer_id);
 			p_next = MCControlNextByLayer(p_next);
 		}
-		}
 	}
 }
 
