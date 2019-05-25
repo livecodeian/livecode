@@ -555,6 +555,7 @@ private unsafe handler InitBrowserView()
 	MCBrowserSetRequestHandler(mBrowser, OnBrowserRequestCallback, nothing)
 	MCBrowserSetJavaScriptHandler(mBrowser, OnJavaScriptCallback, nothing)
 	MCBrowserSetProgressHandler(mBrowser, OnProgressCallback, nothing)
+	MCBrowserSetFileDialogHandler(mBrowser, OnFileDialogCallback, nothing)
 
 	applyProperties(mProperties)
 end handler
@@ -567,6 +568,7 @@ private unsafe handler FinalizeBrowserView()
             MCBrowserSetRequestHandler(mBrowser, nothing, nothing)
             MCBrowserSetJavaScriptHandler(mBrowser, nothing, nothing)
             MCBrowserSetProgressHandler(mBrowser, nothing, nothing)
+			MCBrowserSetFileDialogHandler(mBrowser, nothing, nothing)
 
 			MCBrowserRelease(mBrowser)
 			put nothing into mBrowser
@@ -668,6 +670,12 @@ end handler
 
 private handler OnProgressCallback(in pContext as optional Pointer, in pBrowser as MCBrowserRef, in pUrl as ZStringUTF8, in pProgress as UInt32) returns nothing
 	post "browserProgressChanged" to mScriptObject with [pUrl, pProgress]
+end handler
+
+private handler OnFileDialogCallback(in pContext as optional Pointer, in pBrowser as MCBrowserRef, in pType as MCBrowserFileDialogType, in pOptions as MCBrowserFileDialogOption, in pTitle as optional ZStringUTF8, in pDefaultPath as optional ZStringUTF8, in pFilters as optional ZStringUTF8, in pDefaultFilter as UInt32) returns CBool
+	/* TODO - Implement file dialog (using LCS "answer file" command) */
+	MCBrowserFileDialogSelectPaths(pBrowser, "c:/workspace/livecode/github/livecode/readme.md", 0)
+	return true
 end handler
 
 ----------
