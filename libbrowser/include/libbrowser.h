@@ -95,6 +95,20 @@ public:
 	) = 0;
 };
 
+// Download request handler
+class MCBrowserDownloadRequestHandler : public MCBrowserRefCounted
+{
+public:
+	virtual void OnDownloadRequest(MCBrowser *p_browser, const char *p_url, const char *p_suggested_name);
+};
+
+// Download progress handler
+class MCBrowserDownloadProgressHandler : public MCBrowserRefCounted
+{
+public:
+	virtual void OnDownloadProgress(MCBrowser *p_browser, const char *p_url, MCBrowserDownloadState p_state, uint32_t p_bytes_received, int32_t p_total_bytes) = 0;
+};
+
 // Properties
 enum MCBrowserProperty
 {
@@ -128,6 +142,13 @@ struct MCBrowserFileDialogResponse
 	uindex_t selected_filter;
 };
 
+// Download request response
+struct MCBrowserDownloadRequestResponse
+{
+	bool cancelled;
+	const char *save_path;
+};
+
 // Browser interface
 class MCBrowser : public MCBrowserRefCounted
 {
@@ -136,6 +157,8 @@ public:
 	virtual void SetJavaScriptHandler(MCBrowserJavaScriptHandler *p_handler) = 0;
 	virtual void SetProgressHandler(MCBrowserProgressHandler *p_handler) = 0;
 	virtual void SetFileDialogHandler(MCBrowserFileDialogHandler *p_handler) = 0;
+	virtual void SetDownloadRequestHandler(MCBrowserDownloadRequestHandler *p_handler) = 0;
+	virtual void SetDownloadProgressHandler(MCBrowserDownloadProgressHandler *p_handler) = 0;
 
 	virtual void *GetNativeLayer() = 0;
 	
@@ -157,6 +180,12 @@ public:
 	virtual bool FileDialogGetResponse(MCBrowserFileDialogResponse &r_response) = 0;
 	virtual void FileDialogCancel(void) = 0;
 	virtual void FileDialogSelectPaths(const char *p_paths, uindex_t p_selected_filter) = 0;
+
+	virtual void DownloadClearResponse(void) = 0;
+	virtual void DownloadGetResponse(MCBrowserDownloadRequestResponse) = 0;
+	virtual void DownloadCancel(void) = 0;
+	virtual void DownloadContinueWithSavePath(const char *p_save_path) = 0;
+	virtual bool DownloadContinueWithSaveDialog(void) = 0;
 };
 
 // Browser factory interface
@@ -317,6 +346,8 @@ MC_BROWSER_DLLEXPORT bool MCBrowserEvaluateJavaScript(MCBrowserRef p_browser, co
 MC_BROWSER_DLLEXPORT void MCBrowserFileDialogCancel(MCBrowserRef p_browser);
 MC_BROWSER_DLLEXPORT void MCBrowserFileDialogSelectPaths(MCBrowserRef p_browser, const char *p_paths, uindex_t p_selected_filter);
 
+MC_BROWSER_DLLEXPORT void MCBrowserDownloadCancel(MCBrowserRef p_browser);
+
 enum MCBrowserRequestType
 {
 	kMCBrowserRequestTypeNavigate,
@@ -329,6 +360,13 @@ enum MCBrowserRequestState
 	kMCBrowserRequestStateComplete,
 	kMCBrowserRequestStateFailed,
 	kMCBrowserRequestStateUnhandled,
+};
+
+enum MCBrowserDownloadState
+{
+	kMCBrowserDownloadStateInProgress,
+	kMCBrowserDownloadStateCompleted,
+	kMCBrowserDownloadStateCancelled,
 };
 
 typedef void (*MCBrowserRequestCallback)(void *p_context, MCBrowserRef p_browser, MCBrowserRequestType p_type, MCBrowserRequestState p_state, bool p_in_frame, const char *p_url, const char *p_error);
@@ -344,11 +382,15 @@ typedef bool (*MCBrowserFileDialogCallback)(
 	const char *p_filters,
 	uindex_t p_default_filter
 );
+typedef void (*MCBrowserDownloadRequestCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url);
+typedef void (*MCBrowserDownloadProgressCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url, MCBrowserDownloadState p_state, uint32_t p_bytes_received, int32_t p_total_bytes);
 
 MC_BROWSER_DLLEXPORT bool MCBrowserSetRequestHandler(MCBrowserRef p_browser, MCBrowserRequestCallback p_callback, void *p_context);
 MC_BROWSER_DLLEXPORT bool MCBrowserSetJavaScriptHandler(MCBrowserRef p_browser, MCBrowserJavaScriptCallback p_callback, void *p_context);
 MC_BROWSER_DLLEXPORT bool MCBrowserSetProgressHandler(MCBrowserRef p_browser, MCBrowserProgressCallback p_callback, void *p_context);
 MC_BROWSER_DLLEXPORT bool MCBrowserSetFileDialogHandler(MCBrowserRef p_browser, MCBrowserFileDialogCallback p_callback, void *p_context);
+MC_BROWSER_DLLEXPORT bool MCBrowserSetDownloadRequestHandler(MCBrowserRef p_browser, MCBrowserDownloadRequestCallback p_callback, void *p_context);
+MC_BROWSER_DLLEXPORT bool MCBrowserSetDownloadProgressHandler(MCBrowserRef p_browser, MCBrowserDownloadProgressCallback p_callback, void *p_context);
 
 }
 

@@ -735,7 +735,15 @@ struct MCCefErrorInfo
 	CefLoadHandler::ErrorCode error_code;
 };
 
-class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler
+class MCCefBrowserClient : public
+	CefClient,
+	CefLifeSpanHandler,
+	CefRequestHandler,
+	CefDownloadHandler,
+	CefLoadHandler,
+	CefContextMenuHandler,
+	CefDragHandler,
+	CefDialogHandler
 {
 private:
 	int m_browser_id;
@@ -820,7 +828,7 @@ public:
 	// Tell browser which callback interfaces we implement
 	virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefRequestHandler> GetRequestHandler() OVERRIDE { return this; }
-//	virtual CefRefPtr<CefDownloadHandler> GetDownloadHandler() OVERRIDE { return this; }
+	virtual CefRefPtr<CefDownloadHandler> GetDownloadHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() OVERRIDE { return this; }
 	virtual CefRefPtr<CefDragHandler> GetDragHandler() OVERRIDE { return this; }
@@ -1096,35 +1104,26 @@ public:
 	// CefDownloadHandler interface
 	// Methods called on UI thread
 	
-#if CEF_ON_DOWNLOAD_CALLBACK
-	// TODO - Implement OnDownload callback
 	virtual void OnBeforeDownload(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefDownloadItem> p_item, const CefString & p_suggested_name, CefRefPtr<CefBeforeDownloadCallback> p_callback) OVERRIDE
 	{
-		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
 			return;
 		
-		bool t_cancel;
-		t_cancel = false;
+		char *t_url = nil;
+		/* UNCHECKED */ MCCefStringToUtf8String(p_item->GetURL(), t_url);
 		
-		CefString t_url;
-		t_url = p_item->GetURL();
-		
-		char *t_url_str;
-		t_url_str = nil;
-		/* UNCHECKED */ MCCefStringToUtf8String(t_url, t_url_str);
-		
-		CB_DownloadRequest(m_owner->GetInst(), t_url_str, &t_cancel);
-		
-		if (t_url_str != nil)
-			MCCStringFree(t_url_str);
-		
-		CefString t_download_path;
-		
-		if (!t_cancel)
-			p_callback->Continue(t_download_path, false);
+		m_owner->DownloadClearCancelled();
+		m_owner->OnDownloadRequest(t_url);
+
+		if (!m_owner->DownloadGetCancelled())
+		{
+			CefString t_download_path;
+			p_callback->Continue(t_download_path, true);
+		}
+
+		if (t_url != nil)
+			MCCStringFree(t_url);
 	}
-#endif
 	
 	// CefLoadHandler interface
 	// Methods called on UI thread or render process main thread
