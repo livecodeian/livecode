@@ -120,6 +120,7 @@ enum MCBrowserProperty
 	kMCBrowserEnableContextMenu,
 	kMCBrowserAllowUserInteraction,
 	kMCBrowserIsSecure,
+	kMCBrowserEnableDragDrop,
 	
 	// String properties
 	kMCBrowserURL,

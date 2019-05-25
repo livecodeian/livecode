@@ -53,7 +53,7 @@ void MCBrowserRefCounted::Destroy()
 MCBrowserBase::MCBrowserBase(void)
     : m_event_handler(nil),
       m_javascript_handler(nil),
-      m_progress_handler(nil)
+      m_progress_handler(nil),
 	  m_file_dialog_handler(nil),
 	  m_file_dialog_have_response(false),
 	  m_download_cancelled(false)
