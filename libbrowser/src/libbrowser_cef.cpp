@@ -492,7 +492,7 @@ bool MCCefInitialise(void)
 	CefSettings t_settings;
 	t_settings.multi_threaded_message_loop = MC_CEF_USE_MULTITHREADED_MESSAGELOOP;
 	t_settings.command_line_args_disabled = true;
-	t_settings.windowless_rendering_enabled = true;
+	t_settings.windowless_rendering_enabled = false;
 	t_settings.no_sandbox = true;
 	t_settings.log_severity = LOGSEVERITY_DISABLE;
 	
@@ -979,8 +979,16 @@ public:
 	// Called on UI thread
 	virtual bool OnDragEnter(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefDragData> p_drag_data, CefDragHandler::DragOperationsMask p_mask)
 	{
-		// cancel the drag event
-		return true;
+		if (m_owner->GetEnableDragDrop())
+		{
+			// allow drag event to be processed
+			return false;
+		}
+		else
+		{
+			// cancel the drag event
+			return true;
+		}
 	}
 
 	// CefRequestHandler interface
@@ -1403,6 +1411,7 @@ MCCefBrowserBase::MCCefBrowserBase()
 	m_send_advanced_messages = false;
 	m_show_context_menu = false;
 	m_allow_new_window = false;
+	m_enable_drag_drop = false;
 	
 	m_javascript_handlers = nil;
 	m_js_handler_list = CefListValue::Create();
@@ -1747,6 +1756,16 @@ void MCCefBrowserBase::SetHorizontalScrollbarEnabled(bool p_scrollbars)
 	/* UNCHECKED */ SetOverflowHidden(kMCCefScrollbarHorizontal, !p_scrollbars);
 }
 
+bool MCCefBrowserBase::GetEnableDragDrop(void)
+{
+	return m_enable_drag_drop;
+}
+
+void MCCefBrowserBase::SetEnableDragDrop(bool p_enable_drag_drop)
+{
+	m_enable_drag_drop = p_enable_drag_drop;
+}
+
 bool MCCefBrowserBase::GetRect(MCBrowserRect &r_rect)
 {
 	return PlatformGetRect(r_rect);
@@ -2009,6 +2028,10 @@ bool MCCefBrowserBase::GetBoolProperty(MCBrowserProperty p_property, bool &r_val
 			r_value = GetAllowUserInteraction();
 			return true;
 
+		case kMCBrowserEnableDragDrop:
+			r_value = GetEnableDragDrop();
+			return true;
+
 		default:
 			break;
 	}
@@ -2038,6 +2061,10 @@ bool MCCefBrowserBase::SetBoolProperty(MCBrowserProperty p_property, bool p_valu
 
 		case kMCBrowserAllowUserInteraction:
 			SetAllowUserInteraction(p_value);
+			return true;
+
+		case kMCBrowserEnableDragDrop:
+			SetEnableDragDrop(p_value);
 			return true;
 
 		default:
