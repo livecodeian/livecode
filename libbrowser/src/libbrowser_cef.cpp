@@ -1398,7 +1398,7 @@ public:
 
 				char **t_paths = nil;
 				uint32_t t_path_count = 0;
-				/* UNCHECKED */ MCCStringSplit(t_response.selected_paths, '/n', t_paths, t_path_count);
+				/* UNCHECKED */ MCCStringSplit(t_response.selected_paths, '\n', t_paths, t_path_count);
 
 				for (uindex_t i = 0; i < t_path_count; i++)
 				{

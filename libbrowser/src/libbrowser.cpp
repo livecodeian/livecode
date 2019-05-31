@@ -287,6 +287,7 @@ void MCBrowserBase::FileDialogClearResponse(void)
 		MCCStringFree(const_cast<char*>(m_file_dialog_response.selected_paths));
 	m_file_dialog_response.selected_paths = nil;
 	m_file_dialog_response.selected_filter = 0;
+
 	m_file_dialog_have_response = false;
 }
 
