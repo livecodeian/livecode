@@ -55,10 +55,13 @@ MCBrowserBase::MCBrowserBase(void)
       m_javascript_handler(nil),
       m_progress_handler(nil),
 	  m_file_dialog_handler(nil),
+	  m_download_request_handler(nil),
+	  m_download_progress_handler(nil),
 	  m_file_dialog_have_response(false),
-	  m_download_cancelled(false)
+	  m_download_request_have_response(false)
 {
 	MCBrowserMemoryClear(m_file_dialog_response);
+	MCBrowserMemoryClear(m_download_request_response);
 }
 
 MCBrowserBase::~MCBrowserBase(void)
@@ -75,7 +78,14 @@ MCBrowserBase::~MCBrowserBase(void)
 	if (m_file_dialog_handler)
 		m_file_dialog_handler->Release();
 
+	if (m_download_request_handler)
+		m_download_request_handler->Release();
+
+	if (m_download_progress_handler)
+		m_download_progress_handler->Release();
+
 	FileDialogClearResponse();
+	DownloadClearResponse();
 }
 
 void MCBrowserBase::SetEventHandler(MCBrowserEventHandler *p_handler)
@@ -233,10 +243,12 @@ MCBrowserDownloadRequestHandler *MCBrowserBase::GetDownloadRequestHandler(void)
 	return m_download_request_handler;
 }
 
-void MCBrowserBase::OnDownloadRequest(const char *p_url)
+bool MCBrowserBase::OnDownloadRequest(const char *p_url, const char *p_suggested_name)
 {
 	if (m_download_request_handler != nil)
-		m_download_request_handler->OnDownloadRequest(this, p_url);
+		return m_download_request_handler->OnDownloadRequest(this, p_url, p_suggested_name);
+
+	return false;
 }
 
 //////////
@@ -310,19 +322,56 @@ void MCBrowserBase::FileDialogSelectPaths(const char *p_paths, uindex_t p_select
 
 //////////
 
-void MCBrowserBase::DownloadClearCancelled()
+void MCBrowserBase::DownloadClearResponse()
 {
-	m_download_cancelled = false;
+	if (!m_download_request_have_response)
+		return;
+
+	m_download_request_response.cancelled = false;
+	if (m_download_request_response.save_path)
+		MCCStringFree(const_cast<char*>(m_download_request_response.save_path));
+	m_download_request_response.save_path = nil;
+
+	m_download_request_have_response = false;
 }
 
-void MCBrowserBase::DownloadSetCancelled()
+bool MCBrowserBase::DownloadGetResponse(MCBrowserDownloadRequestResponse &r_response)
 {
-	m_download_cancelled = true;
+	if (!m_download_request_have_response)
+		return false;
+
+	r_response = m_download_request_response;
+	return true;
 }
 
-bool MCBrowserBase::DownloadGetCancelled()
+void MCBrowserBase::DownloadCancel()
 {
-	return m_download_cancelled;
+	if (m_download_request_have_response)
+		return;
+
+	m_download_request_response.cancelled = true;
+
+	m_download_request_have_response = true;
+}
+
+void MCBrowserBase::DownloadContinueWithSavePath(const char *p_save_path)
+{
+	if (m_download_request_have_response)
+		return;
+
+	char *t_save_path = nil;
+	/* UNCHECKED */ MCCStringClone(p_save_path, t_save_path);
+	m_download_request_response.save_path = t_save_path;
+
+	m_download_request_have_response = true;
+}
+
+void MCBrowserBase::DownloadContinueWithSaveDialog(void)
+{
+	if (m_download_request_have_response)
+		return;
+
+	m_download_request_have_response = true;
 }
 
 //////////
@@ -611,7 +660,25 @@ void MCBrowserDownloadCancel(MCBrowserRef p_browser)
 	if (p_browser == nil)
 		return;
 
-	p_browser->DownloadSetCancelled();
+	p_browser->DownloadCancel();
+}
+
+MC_BROWSER_DLLEXPORT_DEF
+void MCBrowserDownloadContinueWithSavePath(MCBrowserRef p_browser, const char *p_save_path)
+{
+	if (p_browser == nil)
+		return;
+
+	p_browser->DownloadContinueWithSavePath(p_save_path);
+}
+
+MC_BROWSER_DLLEXPORT_DEF
+void MCBrowserDownloadContinueWithSaveDialog(MCBrowserRef p_browser)
+{
+	if (p_browser == nil)
+		return;
+
+	p_browser->DownloadContinueWithSaveDialog();
 }
 
 //////////
@@ -861,10 +928,12 @@ public:
 		m_context = p_context;
 	}
 
-	virtual void OnDownloadRequest(MCBrowser *p_browser, const char *p_url)
+	virtual bool OnDownloadRequest(MCBrowser *p_browser, const char *p_url, const char *p_suggested_name)
 	{
 		if (m_callback)
-			m_callback(m_context, p_browser, p_url);
+			return m_callback(m_context, p_browser, p_url, p_suggested_name);
+
+		return false;
 	}
 
 private:

@@ -74,11 +74,13 @@ public:
 		uindex_t p_default_filter
 	);
 
-	virtual void DownloadClearCancelled(void);
-	virtual void DownloadSetCancelled(void);
-	virtual bool DownloadGetCancelled(void);
+	virtual void DownloadClearResponse(void);
+	virtual bool DownloadGetResponse(MCBrowserDownloadRequestResponse &r_response);
+	virtual void DownloadCancel(void);
+	virtual void DownloadContinueWithSavePath(const char *p_save_path);
+	virtual void DownloadContinueWithSaveDialog(void);
 
-	virtual void OnDownloadRequest(const char *p_url);
+	virtual bool OnDownloadRequest(const char *p_url, const char *p_suggested_name);
 	virtual void OnDownloadProgress(const char *p_url, MCBrowserDownloadState p_state, uint32_t p_bytes_recieved, int32_t p_total_bytes);
 
 	static bool BrowserListAdd(MCBrowser *p_browser);
@@ -105,7 +107,8 @@ private:
 	bool m_file_dialog_have_response;
 	MCBrowserFileDialogResponse m_file_dialog_response;
 
-	bool m_download_cancelled;
+	bool m_download_request_have_response;
+	MCBrowserDownloadRequestResponse m_download_request_response;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

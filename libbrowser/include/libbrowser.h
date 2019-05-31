@@ -96,10 +96,18 @@ public:
 };
 
 // Download request handler
+enum MCBrowserDownloadState
+{
+	kMCBrowserDownloadStateInProgress,
+	kMCBrowserDownloadStateCompleted,
+	kMCBrowserDownloadStateCancelled,
+	kMCBrowserDownloadStateFailed,
+};
+
 class MCBrowserDownloadRequestHandler : public MCBrowserRefCounted
 {
 public:
-	virtual void OnDownloadRequest(MCBrowser *p_browser, const char *p_url, const char *p_suggested_name);
+	virtual bool OnDownloadRequest(MCBrowser *p_browser, const char *p_url, const char *p_suggested_name) = 0;
 };
 
 // Download progress handler
@@ -183,10 +191,10 @@ public:
 	virtual void FileDialogSelectPaths(const char *p_paths, uindex_t p_selected_filter) = 0;
 
 	virtual void DownloadClearResponse(void) = 0;
-	virtual void DownloadGetResponse(MCBrowserDownloadRequestResponse) = 0;
+	virtual bool DownloadGetResponse(MCBrowserDownloadRequestResponse &r_response) = 0;
 	virtual void DownloadCancel(void) = 0;
 	virtual void DownloadContinueWithSavePath(const char *p_save_path) = 0;
-	virtual bool DownloadContinueWithSaveDialog(void) = 0;
+	virtual void DownloadContinueWithSaveDialog(void) = 0;
 };
 
 // Browser factory interface
@@ -348,6 +356,8 @@ MC_BROWSER_DLLEXPORT void MCBrowserFileDialogCancel(MCBrowserRef p_browser);
 MC_BROWSER_DLLEXPORT void MCBrowserFileDialogSelectPaths(MCBrowserRef p_browser, const char *p_paths, uindex_t p_selected_filter);
 
 MC_BROWSER_DLLEXPORT void MCBrowserDownloadCancel(MCBrowserRef p_browser);
+MC_BROWSER_DLLEXPORT void MCBrowserDownloadContinueWithSavePath(MCBrowserRef p_browser, const char *p_save_path);
+MC_BROWSER_DLLEXPORT void MCBrowserDownloadContinueWithSaveDialog(MCBrowserRef p_browser);
 
 enum MCBrowserRequestType
 {
@@ -363,13 +373,6 @@ enum MCBrowserRequestState
 	kMCBrowserRequestStateUnhandled,
 };
 
-enum MCBrowserDownloadState
-{
-	kMCBrowserDownloadStateInProgress,
-	kMCBrowserDownloadStateCompleted,
-	kMCBrowserDownloadStateCancelled,
-};
-
 typedef void (*MCBrowserRequestCallback)(void *p_context, MCBrowserRef p_browser, MCBrowserRequestType p_type, MCBrowserRequestState p_state, bool p_in_frame, const char *p_url, const char *p_error);
 typedef void (*MCBrowserJavaScriptCallback)(void *p_context, MCBrowserRef p_browser, const char *p_handler, MCBrowserListRef p_params);
 typedef void (*MCBrowserProgressCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url, uint32_t p_progress);
@@ -383,7 +386,8 @@ typedef bool (*MCBrowserFileDialogCallback)(
 	const char *p_filters,
 	uindex_t p_default_filter
 );
-typedef void (*MCBrowserDownloadRequestCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url);
+
+typedef bool (*MCBrowserDownloadRequestCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url, const char *p_suggested_name);
 typedef void (*MCBrowserDownloadProgressCallback)(void *p_context, MCBrowserRef p_browser, const char *p_url, MCBrowserDownloadState p_state, uint32_t p_bytes_received, int32_t p_total_bytes);
 
 MC_BROWSER_DLLEXPORT bool MCBrowserSetRequestHandler(MCBrowserRef p_browser, MCBrowserRequestCallback p_callback, void *p_context);

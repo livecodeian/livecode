@@ -482,6 +482,14 @@ static void __MCCefPathToNativeInline(char *p_path)
 			p_path[i] = kCefPathSeparator;
 }
 
+static bool __MCCefPathToNative(const char *p_path, char *&r_native_path)
+{
+	if (!MCCStringClone(p_path, r_native_path))
+		return false;
+	__MCCefPathToNativeInline(r_native_path);
+	return true;
+}
+
 // IM-2014-03-13: [[ revBrowserCEF ]] Initialisation of the CEF library
 bool MCCefInitialise(void)
 {
@@ -1120,17 +1128,70 @@ public:
 		char *t_url = nil;
 		/* UNCHECKED */ MCCefStringToUtf8String(p_item->GetURL(), t_url);
 		
-		m_owner->DownloadClearCancelled();
-		m_owner->OnDownloadRequest(t_url);
+		char *t_suggested_name = nil;
+		/* UNCHECKED */ MCCefStringToUtf8String(p_suggested_name, t_suggested_name);
 
-		if (!m_owner->DownloadGetCancelled())
+		m_owner->DownloadClearResponse();
+
+		bool t_handled;
+		t_handled = m_owner->OnDownloadRequest(t_url, t_suggested_name);
+
+		if (t_handled)
 		{
-			CefString t_download_path;
-			p_callback->Continue(t_download_path, true);
+			MCBrowserDownloadRequestResponse t_response;
+			while (!m_owner->DownloadGetResponse(t_response))
+				MCBrowserRunloopWait();
+
+			if (!t_response.cancelled)
+			{
+				bool t_have_path;
+				t_have_path = !MCCStringIsEmpty(t_response.save_path);
+
+				CefString t_download_path;
+				if (t_have_path)
+				{
+					char *t_native_path = nil;
+					/* UNCHECKED */ __MCCefPathToNative(t_response.save_path, t_native_path);
+					/* UNCHECKED */ MCCefStringFromUtf8String(t_native_path, t_download_path);
+					if (t_native_path)
+						MCCStringFree(t_native_path);
+				}
+
+				p_callback->Continue(t_download_path, !t_have_path);
+			}
 		}
+
+		m_owner->DownloadClearResponse();
 
 		if (t_url != nil)
 			MCCStringFree(t_url);
+		if (t_suggested_name)
+			MCCStringFree(t_suggested_name);
+	}
+
+	virtual void OnDownloadUpdated(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefDownloadItem> p_download, CefRefPtr<CefDownloadItemCallback> p_callback)
+	{
+		char *t_url = nil;
+		MCCefStringToUtf8String(p_download->GetURL(), t_url);
+
+		MCBrowserDownloadState t_state;
+		if (p_download->IsInProgress())
+			t_state = kMCBrowserDownloadStateInProgress;
+		else if (p_download->IsComplete())
+			t_state = kMCBrowserDownloadStateCompleted;
+		else if (p_download->IsCanceled())
+			t_state = kMCBrowserDownloadStateCancelled;
+		else if (!p_download->IsValid())
+			t_state = kMCBrowserDownloadStateFailed;
+		else
+			t_state = kMCBrowserDownloadStateFailed;
+
+		m_owner->DownloadClearResponse();
+		m_owner->OnDownloadProgress(t_url, t_state, p_download->GetReceivedBytes(), p_download->GetTotalBytes());
+		MCBrowserDownloadRequestResponse t_response;
+		if (m_owner->DownloadGetResponse(t_response) && t_response.cancelled)
+			p_callback->Cancel();
+		m_owner->DownloadClearResponse();
 	}
 	
 	// CefLoadHandler interface
