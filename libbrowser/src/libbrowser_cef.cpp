@@ -474,6 +474,14 @@ static bool __MCCefBuildPath(const char *p_library_path,
     return true;
 }
 
+static void __MCCefPathToNativeInline(char *p_path)
+{
+	uindex_t t_len = MCCStringLength(p_path);
+	for (uindex_t i = 0; i < t_len; i++)
+		if (p_path[i] == '/')
+			p_path[i] = kCefPathSeparator;
+}
+
 // IM-2014-03-13: [[ revBrowserCEF ]] Initialisation of the CEF library
 bool MCCefInitialise(void)
 {
@@ -1308,10 +1316,12 @@ public:
 			MCCStringFree(t_temp);
 		}
 
-		bool t_handle;
-		t_handle = m_owner->OnFileDialog(t_type, (MCBrowserFileDialogOptions)t_options, t_title, t_default_path, t_filters, selected_accept_filter);
+		m_owner->FileDialogClearResponse();
 
-		if (t_handle)
+		bool t_handled;
+		t_handled = m_owner->OnFileDialog(t_type, (MCBrowserFileDialogOptions)t_options, t_title, t_default_path, t_filters, selected_accept_filter);
+
+		if (t_handled)
 		{
 			MCBrowserFileDialogResponse t_response;
 			while (!m_owner->FileDialogGetResponse(t_response))
@@ -1332,6 +1342,7 @@ public:
 				for (uindex_t i = 0; i < t_path_count; i++)
 				{
 					CefString t_cef_string;
+					__MCCefPathToNativeInline(t_paths[i]);
 					/* UNCHECKED */ MCCefStringFromUtf8String(t_paths[i], t_cef_string);
 					t_file_paths.push_back(t_cef_string);
 					MCCStringFree(t_paths[i]);
@@ -1343,10 +1354,14 @@ public:
 			m_owner->FileDialogClearResponse();
 		}
 
-		MCCStringFree(t_title);
-		MCCStringFree(t_filters);
+		if (t_title)
+			MCCStringFree(t_title);
+		if (t_default_path)
+			MCCStringFree(t_default_path);
+		if (t_filters)
+			MCCStringFree(t_filters);
 
-		return true;
+		return t_handled;
 	}
 
 	IMPLEMENT_REFCOUNTING(MCCefBrowserClient);
