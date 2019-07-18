@@ -176,16 +176,14 @@ class LibBrowserWebView extends WebView
 		super(p_context);
 		
 		setWebViewClient(new WebViewClient() {
-			public boolean shouldOverrideUrlLoading(WebView p_view, String p_url)
+			@Override
+			public boolean shouldOverrideUrlLoading(WebView p_view, WebResourceRequest p_request)
 			{
-				//Log.i(TAG, String.format("shouldOverrideUrlLoading(%s)", p_url));
-				if (useExternalHandler(getContext(), p_url))
-					return true;
-	
-				setUrl(p_url);
-				return true;
+				// Attempt to load all requests within browser (don't defer to external apps)
+				return false;
 			}
 		
+			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon)
 			{
 				//Log.i(TAG, "onPageStarted() - " + url);
@@ -195,6 +193,7 @@ class LibBrowserWebView extends WebView
 				wakeEngineThread();
 			}
 		
+			@Override
 			public void onPageFinished(WebView view, String url)
 			{
 				//Log.i(TAG, "onPageFinished() - " + url);
@@ -208,6 +207,7 @@ class LibBrowserWebView extends WebView
 				wakeEngineThread();
 			}
 		
+			@Override
 			public void onReceivedError(WebView view, int errorCode, String description, String failingUrl)
 			{
 				//doLoadingError(toAPKPath(failingUrl), description);
@@ -579,50 +579,6 @@ class LibBrowserWebView extends WebView
     private static void wakeEngineThread()
     {
 		Engine.getEngine().wakeEngineThread();
-	}
-	
-    private static final Pattern ACCEPTED_URI_SCHEMA = Pattern.compile(
-															   "(?i)" + // switch on case insensitive matching
-															   "(" +    // begin group for schema
-															   "(?:http|https|file):\\/\\/" +
-															   "|(?:inline|data|about|javascript):" +
-															   ")" +
-															   "(.*)" );
-	
-	private static boolean useExternalHandler(Context p_context, String p_url)
-	{
-		Intent intent;
-		// perform generic parsing of the URI to turn it into an Intent.
-		try {
-			intent = Intent.parseUri(p_url, Intent.URI_INTENT_SCHEME);
-		} catch (URISyntaxException ex) {
-			Log.w("Browser", "Bad URI " + p_url + ": " + ex.getMessage());
-			return false;
-		}
-		
-		// check whether the intent can be resolved.
-		if (p_context.getPackageManager().resolveActivity(intent, 0) == null) {
-			return false;
-		}
-		
-		// sanitize the Intent, ensuring web pages can not bypass browser
-		// security (only access to BROWSABLE activities).
-		intent.addCategory(Intent.CATEGORY_BROWSABLE);
-		intent.setComponent(null);
-		
-		if (ACCEPTED_URI_SCHEMA.matcher(p_url).matches())
-			return false;
-		
-		try {
-			if (((Activity)p_context).startActivityIfNeeded(intent, -1)) {
-				return true;
-			}
-		} catch (ActivityNotFoundException ex) {
-			// ignore the error. If no application can handle the URL,
-			// eg about:blank, assume the browser can handle it.
-		}
-		
-		return false;
 	}
 	
     public static String escapeJSString(String p_string)
