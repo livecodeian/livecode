@@ -1445,8 +1445,18 @@ void MCWKWebViewBrowserNavigationRequest::Cancel()
 	bool t_quiet = false;
 	if (navigationAction.navigationType == WKNavigationTypeOther)
 	{
-		MCAssert(m_pending_request != nil);
-		t_quiet = m_pending_request.quiet;
+		// Frame navigation requests may be generated while navigating
+		// to the main URL.
+		if (navigationAction.targetFrame.isMainFrame)
+		{
+			MCAssert(m_pending_request != nil);
+			t_quiet = m_pending_request.quiet;
+		}
+		else
+		{
+			MCAssert(m_current_request != nil);
+			t_quiet = m_current_request.quiet;
+		}
 	}
 	
 	MCWKWebViewBrowserNavigationRequest *t_request;
