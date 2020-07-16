@@ -138,6 +138,7 @@ mergeInto(LibraryManager.library, {
 			var window = LiveCodeUtil.fetchObject(pID);
 			if (window)
 			{
+				LiveCodeEvents.removeEventListeners(window.canvas);
 				LiveCodeDC._removeResizeMonitor(window.canvas);
 				LiveCodeDC.setWindowVisible(pID, false);
 				
