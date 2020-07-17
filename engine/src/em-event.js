@@ -125,6 +125,10 @@ mergeInto(LibraryManager.library, {
 				tInput.addEventListener(type, handler);
 			});
 
+			// Add listener for changes to device pixel ratio
+			var matchQuery = `(resolution: ${window.devicePixelRatio}dppx)`;
+			window.matchMedia(matchQuery).addListener(LiveCodeEvents._handleDevicePixelRatioChanged);
+
 			LiveCodeEvents._initialised = true;
 		},
 
@@ -887,6 +891,16 @@ mergeInto(LibraryManager.library, {
 		// UI events
 		// ----------------------------------------------------------------
 		
+		_handleDevicePixelRatioChanged: function() {
+			LiveCodeAsync.delay(function() {
+				Module.ccall('MCEmscriptenHandleDevicePixelRatioChanged',
+								'number', /* bool */
+								[],
+								[])
+			});
+			LiveCodeAsync.resume();
+		},
+
 		// prevent context menu popup on right-click
 		_handleContextMenu: function(e) {
 			e.preventDefault()
