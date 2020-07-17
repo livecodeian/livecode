@@ -33,6 +33,9 @@ mergeInto(LibraryManager.library, {
 		// current target of keyboard / input events
 		_inputtarget: null,
 
+		// current target for mouse / pointer events
+		_mousetarget: null,
+  
 		// This function is used to call a function for each event
 		// type to handler mapping defined for LiveCode on Emscripten.
 		//
@@ -722,17 +725,24 @@ mergeInto(LibraryManager.library, {
 			}
 		},
 
+		// Convert document coordinates to logical coordinates in units
+		// of CSS pixels relative to the top left of the target
+		_globalToLocalCoordinates: function(pTarget, pX, pY) {
+			var bcRect = pTarget.getBoundingClientRect();
+			var x = pX - bcRect.left - pTarget.clientLeft + pTarget.scrollLeft;
+			var y = pY - bcRect.top - pTarget.clientTop + pTarget.scrollTop;
+
+			return [x, y];
+		},
+
 		// Convert event coordinates to logical coordinates -- these
 		// are in units of CSS pixels relative to the top left of the
 		// target
-		_encodeMouseCoordinates: function(mouseEvent) {
-			var target = LiveCodeEvents._eventTarget(mouseEvent);
-			var x = mouseEvent.clientX - target.getBoundingClientRect().left -
-				target.clientLeft + target.scrollLeft;
-			var y = mouseEvent.clientY - target.getBoundingClientRect().top -
-				target.clientTop + target.scrollTop;
-
-			return [x, y];
+		_encodeMouseCoordinates: function(pMouseEvent, pTarget) {
+			return LiveCodeEvents._globalToLocalCoordinates(
+					pTarget,
+					pMouseEvent.clientX,
+					pMouseEvent.clientY);
 		},
 
 		// Wrapper for MCEmscriptenHandleMousePosition
@@ -770,6 +780,35 @@ mergeInto(LibraryManager.library, {
 						 [stack, time, inside]);
 		},
 
+		_setMouseFocus: function(pTarget, pMouseEvent) {
+			if (pTarget == LiveCodeEvents._mousetarget)
+				return;
+
+			var tScreenX = pMouseEvent.clientX;
+			var tScreenY = pMouseEvent.clientY;
+			if (LiveCodeEvents._mousetarget != null)
+			{
+				// update mouse position and send mouseleave
+				var tStack = LiveCodeEvents._getStackForCanvas(LiveCodeEvents._mousetarget);
+				var tMods = LiveCodeEvents._encodeModifiers(pMouseEvent.shiftKey, pMouseEvent.altKey, pMouseEvent.ctrlKey, pMouseEvent.metaKey);
+				var tPos = LiveCodeEvents._globalToLocalCoordinates(LiveCodeEvents._mousetarget, tScreenX, tScreenY);
+				LiveCodeEvents._postMousePosition(tStack, pMouseEvent.timeStamp, tMods, tPos[0], tPos[1]);
+				LiveCodeEvents._postMouseFocus(tStack, pMouseEvent.timeStamp, false);
+			}
+
+			LiveCodeEvents._mousetarget = pTarget;
+
+			if (pTarget != null)
+			{
+				// send mouseenter then update mouse position
+				var tStack = LiveCodeEvents._getStackForCanvas(pTarget);
+				var tMods = LiveCodeEvents._encodeModifiers(pMouseEvent.shiftKey, pMouseEvent.altKey, pMouseEvent.ctrlKey, pMouseEvent.metaKey);
+				var tPos = LiveCodeEvents._globalToLocalCoordinates(pTarget, tScreenX, tScreenY);
+				LiveCodeEvents._postMouseFocus(tStack, pMouseEvent.timeStamp, true);
+				LiveCodeEvents._postMousePosition(tStack, pMouseEvent.timeStamp, tMods, tPos[0], tPos[1]);
+			}
+		},
+
 		// target for redirected mouse events
 		_captureTarget: null,
 		
@@ -797,7 +836,7 @@ mergeInto(LibraryManager.library, {
 				var target = LiveCodeEvents._eventTarget(e);
 				var stack = LiveCodeEvents._getStackForCanvas(target);
 				var mods = LiveCodeEvents._encodeModifiers(e.shiftKey, e.altKey, e.ctrlKey, e.metaKey);
-				var pos = LiveCodeEvents._encodeMouseCoordinates(e);
+				var pos = LiveCodeEvents._encodeMouseCoordinates(e, target);
 
 				// ignore events for non-lc elements
 				if (!stack)
@@ -829,41 +868,33 @@ mergeInto(LibraryManager.library, {
 					LiveCodeEvents._postMousePress(stack, e.timeStamp, mods,
 												   state, e.button);
 					
-					// change mouse focus if event target is different from captured target
-					var refocus = target != e.target;
-					if (refocus)
-						LiveCodeEvents._postMouseFocus(stack, e.timeStamp, false);
-					
 					LiveCodeEvents._releaseFocus();
-					
-					if (refocus)
-					{
-						var stack = LiveCodeEvents._getStackForCanvas(e.target);
-						var pos = LiveCodeEvents._encodeMouseCoordinates(e);
-						if (stack)
-						{
-							LiveCodeEvents._postMouseFocus(stack, e.timeStamp, true);
-							LiveCodeEvents._postMousePosition(stack, e.timeStamp, mods, pos[0], pos[1]);
-						}
-					}
+
+					// update the mousefocus once the mouse button is released
+					var tNewTarget = e.target;
+					var tNewStack = LiveCodeEvents._getStackForCanvas(tNewTarget);
+					if (tNewStack == null)
+						tNewTarget = null;
+					LiveCodeEvents._setMouseFocus(tNewTarget, e);
 					
 					break;
 
 				case 'mouseenter':
 					// Don't send window focus events while capturing mouse events
 					if (LiveCodeEvents._captureTarget == null)
-					{
-						LiveCodeEvents._postMouseFocus(stack, e.timeStamp, true);
-						LiveCodeEvents._postMousePosition(stack, e.timeStamp, mods, pos[0], pos[1]);
-					}
+						LiveCodeEvents._setMouseFocus(target, e);
+
 					break;
 
 				case 'mouseleave':
 					// Don't send window focus events while capturing mouse events
 					if (LiveCodeEvents._captureTarget == null)
 					{
-						LiveCodeEvents._postMousePosition(stack, e.timeStamp, mods, pos[0], pos[1]);
-						LiveCodeEvents._postMouseFocus(stack, e.timeStamp, false);
+						var tNewTarget = e.relatedTarget;
+						var tNewStack = LiveCodeEvents._getStackForCanvas(tNewTarget);
+						if (tNewStack == null)
+							tNewTarget = null;
+						LiveCodeEvents._setMouseFocus(tNewTarget, e);
 					}
 					break;
 
