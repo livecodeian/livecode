@@ -1802,12 +1802,14 @@ static bool __MCCanvasImageEqual(MCValueRef p_left, MCValueRef p_right)
 	if (p_left == p_right)
 		return true;
 	
-	return MCMemoryCompare(MCValueGetExtraBytesPtr(p_left), MCValueGetExtraBytesPtr(p_right), sizeof(__MCCanvasImageImpl)) == 0;
+	__MCCanvasImageImpl *t_left = MCCanvasImageGet((MCCanvasImageRef)p_left);
+	__MCCanvasImageImpl *t_right = MCCanvasImageGet((MCCanvasImageRef)p_right);
+	return t_left->image_rep == t_right->image_rep;
 }
 
 static hash_t __MCCanvasImageHash(MCValueRef p_value)
 {
-	return MCHashBytes(MCValueGetExtraBytesPtr(p_value), sizeof(__MCCanvasImageImpl));
+	return MCHashPointer(MCCanvasImageGetImageRep((MCCanvasImageRef)p_value));
 }
 
 static bool __MCCanvasImageDescribe(MCValueRef p_value, MCStringRef &r_desc)
@@ -1835,7 +1837,9 @@ bool MCCanvasImageCreateWithImageRep(MCImageRep *p_image, MCCanvasImageRef &r_im
 	
 	if (t_success)
 	{
-		*MCCanvasImageGet(t_image) = MCImageRepRetain(p_image);
+		__MCCanvasImageImpl *t_impl = MCCanvasImageGet(t_image);
+		t_impl->image_rep = MCImageRepRetain(p_image);
+		t_impl->is_valid = true;
 		t_success = MCValueInter(t_image, r_image);
 	}
 	
@@ -1851,7 +1855,7 @@ __MCCanvasImageImpl *MCCanvasImageGet(MCCanvasImageRef p_image)
 
 MCImageRep *MCCanvasImageGetImageRep(MCCanvasImageRef p_image)
 {
-	return *MCCanvasImageGet(p_image);
+	return MCCanvasImageGet(p_image)->image_rep;
 }
 
 // Constructors
@@ -1954,57 +1958,80 @@ void MCCanvasImageMakeWithPixelsWithSizeAsList(MCProperListRef p_size, MCDataRef
 
 // Properties
 
+static bool __MCCanvasImageGetGeometry(MCCanvasImageRef p_image, uint32_t &r_width, uint32_t &r_height)
+{
+	__MCCanvasImageImpl *t_image = MCCanvasImageGet(p_image);
+	if (t_image->is_valid)
+		t_image->is_valid = MCImageRepGetGeometry(t_image->image_rep, r_width, r_height);
+
+	return t_image->is_valid;
+}
+
 MC_DLLEXPORT_DEF
 void MCCanvasImageGetWidth(MCCanvasImageRef p_image, uint32_t &r_width)
 {
-	uint32_t t_width, t_height;
-	if (!MCImageRepGetGeometry(MCCanvasImageGetImageRep(p_image), t_width, t_height))
+	uint32_t t_height;
+	if (!__MCCanvasImageGetGeometry(p_image, r_width, t_height))
 	{
-		MCCanvasThrowError(kMCCanvasImageRepGetGeometryErrorTypeInfo);
+		r_width = 0;
 		return;
 	}
-	r_width = t_width;
 }
 
 MC_DLLEXPORT_DEF
 void MCCanvasImageGetHeight(MCCanvasImageRef p_image, uint32_t &r_height)
 {
-	uint32_t t_width, t_height;
-	if (!MCImageRepGetGeometry(MCCanvasImageGetImageRep(p_image), t_width, t_height))
+	uint32_t t_width;
+	if (!__MCCanvasImageGetGeometry(p_image, t_width, r_height))
 	{
-		MCCanvasThrowError(kMCCanvasImageRepGetGeometryErrorTypeInfo);
+		r_height = 0;
 		return;
 	}
-	r_height = t_height;
 }
 
 MC_DLLEXPORT_DEF
 void MCCanvasImageGetMetadata(MCCanvasImageRef p_image, MCArrayRef &r_metadata)
 {
-	if (!MCImageRepGetMetadata(MCCanvasImageGetImageRep(p_image), r_metadata))
-		MCCanvasThrowError(kMCCanvasImageRepGetMetadataErrorTypeInfo);
+	__MCCanvasImageImpl *t_image = MCCanvasImageGet(p_image);
+	if (t_image->is_valid)
+		t_image->is_valid = MCImageRepGetMetadata(t_image->image_rep, r_metadata);
+
+	if (!t_image->is_valid)
+	{
+		r_metadata = MCValueRetain(kMCEmptyArray);
+		return;
+	}
 }
 
 MC_DLLEXPORT_DEF
 void MCCanvasImageGetDensity(MCCanvasImageRef p_image, double &r_density)
 {
-	if (!MCImageRepGetDensity(MCCanvasImageGetImageRep(p_image), r_density))
-		MCCanvasThrowError(kMCCanvasImageRepGetDensityErrorTypeInfo);
+	__MCCanvasImageImpl *t_image = MCCanvasImageGet(p_image);
+	if (t_image->is_valid)
+		t_image->is_valid = MCImageRepGetDensity(t_image->image_rep, r_density);
+
+	if (!t_image->is_valid)
+	{
+		r_density = 0;
+		return;
+	}
 }
 
 MC_DLLEXPORT_DEF
 void MCCanvasImageGetPixels(MCCanvasImageRef p_image, MCDataRef &r_pixels)
 {
-	MCImageRep *t_image_rep;
-	t_image_rep = MCCanvasImageGetImageRep(p_image);
-	
+	__MCCanvasImageImpl *t_image = MCCanvasImageGet(p_image);
+
 	MCImageBitmap *t_raster;
 	
 	// TODO - handle case of missing normal density image
 	
-	if (!MCImageRepLockRaster(t_image_rep, 0, 1.0, t_raster))
+	if (t_image->is_valid)
+		t_image->is_valid = MCImageRepLockRaster(t_image->image_rep, 0, 1.0, t_raster);
+
+	if (!t_image->is_valid)
 	{
-		MCCanvasThrowError(kMCCanvasImageRepLockErrorTypeInfo);
+		r_pixels = MCValueRetain(kMCEmptyData);
 		return;
 	}
 	
@@ -2035,7 +2062,13 @@ void MCCanvasImageGetPixels(MCCanvasImageRef p_image, MCDataRef &r_pixels)
 	
 	/* UNCHECKED */ MCDataCreateWithBytesAndRelease(t_buffer, t_buffer_size, r_pixels);
 	
-	MCImageRepUnlockRaster(t_image_rep, 0, t_raster);
+	MCImageRepUnlockRaster(t_image->image_rep, 0, t_raster);
+}
+
+MC_DLLEXPORT_DEF
+void MCCanvasImageGetIsValid(MCCanvasImageRef p_image, bool &r_valid)
+{
+	r_valid = MCCanvasImageGet(p_image)->is_valid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

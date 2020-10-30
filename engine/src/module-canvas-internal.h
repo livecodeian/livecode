@@ -41,7 +41,12 @@ typedef MCGAffineTransform __MCCanvasTransformImpl;
 __MCCanvasTransformImpl *MCCanvasTransformGet(MCCanvasTransformRef p_transform);
 
 // Image type
-typedef MCImageRep *__MCCanvasImageImpl;
+struct __MCCanvasImageImpl
+{
+	MCImageRep *image_rep;
+	bool is_valid;
+};
+
 __MCCanvasImageImpl *MCCanvasImageGet(MCCanvasImageRef p_image);
 
 // Solid Paint type

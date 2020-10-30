@@ -2187,6 +2187,10 @@ end syntax
 
 //////////
 
+// Validity Check
+
+public foreign handler MCCanvasImageGetIsValid(in pImage as Image, out rValid as CBool) returns nothing binds to "<builtin>"
+
 // Properties
 
 public foreign handler MCCanvasImageGetWidth(in pImage as Image, out rWidth as UInt32) returns nothing binds to "<builtin>"
@@ -2334,6 +2338,44 @@ syntax ImagePropertyPixels is prefix operator with property precedence
 	"the" "pixels" "of" <mImage: Expression>
 begin
 	MCCanvasImageGetPixels(mImage, output)
+end syntax
+
+//////////
+
+/**
+Summary:	The validity of an image
+
+mImage:		An expression which evaluates to an image.
+
+Description:	Whether or not the image is valid
+
+Example:
+	// Create an image from empty data
+	variable tImage as Image
+	put image from data (the empty data) into tImage
+
+	// Before attempting to load the image it is assumed to be valid
+	variable tValid as Boolean
+	put tImage is valid into tValid
+
+	// tValid now contains True
+
+	// Get the width of the image, this will fail, returning 0 and marking the image as invalid
+	variable tWidth as Number
+	put the width of tImage into tWidth
+
+	// tWidth now contains 0
+
+	put tImage is valid into tValid
+
+	// tValid now contains False
+
+Tags:	Canvas
+*/
+syntax ImageIsValid is postfix operator with property precedence
+	<mImage: Expression> "is" "valid"
+begin
+	MCCanvasImageGetIsValid(mImage, output)
 end syntax
 
 //////////

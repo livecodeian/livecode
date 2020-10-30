@@ -310,6 +310,9 @@ extern "C" MC_DLLEXPORT void MCCanvasImageMakeWithPixelsInFormat(integer_t p_wid
 extern "C" MC_DLLEXPORT void MCCanvasImageMakeWithPixelsWithSizeAsList(MCProperListRef p_size, MCDataRef p_pixels, MCCanvasImageRef &x_image);
 extern "C" MC_DLLEXPORT void MCCanvasImageMakeWithResourceFile(MCStringRef p_resource, MCCanvasImageRef &r_image);
 
+// Validity check
+extern "C" MC_DLLEXPORT void MCCanvasImageGetIsValid(MCCanvasImageRef p_image, bool &r_valid);
+
 // Properties
 extern "C" MC_DLLEXPORT void MCCanvasImageGetWidth(MCCanvasImageRef p_image, uint32_t &r_width);
 extern "C" MC_DLLEXPORT void MCCanvasImageGetHeight(MCCanvasImageRef p_image, uint32_t &r_height);
