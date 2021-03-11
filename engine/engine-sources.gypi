@@ -583,6 +583,7 @@
 							
 			# Group "Theming"
 			'src/linux-theme.cpp',
+			'src/mac-applescript.mm',
 			'src/mac-theme.mm',
 			'src/mblandroid-theme.cpp',
 			'src/mbliphone-theme.mm',

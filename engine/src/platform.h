@@ -1332,6 +1332,8 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType, MCPlatformControl
 bool MCPlatformGetControlThemePropFont(MCPlatformControlType, MCPlatformControlPart, MCPlatformControlState, MCPlatformThemeProperty, MCFontRef&);
 bool MCPlatformGetControlThemePropString(MCPlatformControlType, MCPlatformControlPart, MCPlatformControlState, MCPlatformThemeProperty, MCStringRef&);
 
+bool MCPlatformExecuteScript(MCStringRef p_script, MCStringRef p_language, MCStringRef &r_return_value, MCStringRef &r_error_message);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 #endif

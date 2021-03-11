@@ -4630,6 +4630,26 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
     
     virtual void DoAlternateLanguage(MCStringRef p_script, MCStringRef p_language)
     {
+		if (MCmajorosversion >= MCOSVersionMake(10,16,0))
+		{
+			bool t_success;
+			MCAutoStringRef t_return_value;
+			MCAutoStringRef t_error_message;
+			t_success = MCPlatformExecuteScript(p_script, p_language, &t_return_value, &t_error_message);
+			if (t_success)
+			{
+				if (nil != *t_error_message)
+				{
+					MCresult->setvalueref(*t_error_message);
+				}
+				else if (nil != *t_return_value)
+				{
+					MCresult->setvalueref(*t_return_value);
+				}
+				
+				return;
+			}
+		}
         getosacomponents();
         OSAcomponent *posacomp = NULL;
         uint2 i;
